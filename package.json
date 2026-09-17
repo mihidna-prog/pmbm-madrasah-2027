@@ -6,14 +6,15 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-  "dev": "astro dev",
-  "build": "astro build",
-  "start": "node ./dist/server/entry.mjs",
-  "preview": "astro preview",
-  "astro": "astro"
-},
+    "dev": "astro dev",
+    "build": "astro build",
+    "start": "node ./dist/server/entry.mjs",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
   "dependencies": {
     "@astrojs/node": "^11.1.6",
+    "@astrojs/vercel": "^11.0.10",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.3.2",
     "mysql2": "^3.24.4",
