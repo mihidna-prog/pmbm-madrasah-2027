@@ -1,0 +1,151 @@
+---
+import '../styles/global.css';
+import mysql from 'mysql2/promise';
+
+const namaSekolah = "MI Hidayatul Husna Krasak";
+const tahunAjaran = "2027/2028";
+
+let settings: any = { 
+  status_pendaftaran: 'BUKA', 
+  pesan_tutup: 'Mohon maaf, halaman pengumuman seleksi murid baru saat ini belum dibuka oleh panitia.' 
+};
+
+let listLulus: any[] = [];
+
+try {
+  const connection: any = await mysql.createConnection({
+    host: 'localhost', user: 'root', password: '', database: 'pmbm_madrasah',
+  });
+
+  const [settingRows]: any = await connection.query('SELECT * FROM settings WHERE id = 1');
+  if (settingRows.length > 0) {
+    settings = settingRows[0];
+  }
+
+  if (settings.status_pendaftaran === 'BUKA') {
+    const [rows]: any = await connection.query(
+      "SELECT no_pendaftaran, nama_siswa, asal_sekolah, status_kelulusan FROM pendaftar WHERE status_kelulusan != 'Diproses' ORDER BY nama_siswa ASC"
+    );
+    listLulus = rows;
+  }
+
+  await connection.end();
+} catch (e) {
+  console.error("Gagal memuat database:", e);
+}
+---
+
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <title>Pengumuman Hasil Seleksi PMBM - {namaSekolah}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col justify-between">
+
+    <nav class="bg-emerald-950 text-white p-4">
+      <div class="max-w-4xl mx-auto flex justify-between items-center">
+        <a href="/" class="text-xs font-bold bg-emerald-800 hover:bg-emerald-700 px-3.5 py-2 rounded-xl transition">← Kembali ke Utama</a>
+        <span class="font-extrabold text-xs sm:text-sm">{namaSekolah}</span>
+      </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-4 py-8 w-full space-y-6 flex-1 flex flex-col justify-center">
+      
+      {settings.status_pendaftaran === 'TUTUP' ? (
+        <div class="bg-white p-8 sm:p-12 rounded-3xl border border-slate-200 shadow-xl text-center space-y-6 max-w-xl mx-auto">
+          <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl mx-auto flex items-center justify-center text-3xl font-bold shadow-sm">
+            🔒
+          </div>
+          <div class="space-y-2">
+            <h1 class="text-xl sm:text-2xl font-black text-slate-900">Pengumuman Belum Dibuka</h1>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              {settings.pesan_tutup || 'Mohon maaf, halaman pengumuman hasil seleksi saat ini sedang ditutup oleh panitia.'}
+            </p>
+          </div>
+          <div>
+            <a href="/" class="inline-block bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-6 py-3.5 rounded-xl shadow transition">
+              Kembali ke Beranda Utama
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div class="space-y-6">
+          <div class="text-center space-y-2">
+            <span class="bg-amber-400 text-slate-950 font-black text-xs px-4 py-1 rounded-full uppercase shadow-sm">
+              HASIL SELEKSI PENERIMAAN MURID BARU
+            </span>
+            <h1 class="text-2xl sm:text-3xl font-black text-slate-900">Pengumuman Hasil Seleksi PMBM TA {tahunAjaran}</h1>
+            <p class="text-xs text-slate-500">Cari nama atau nomor pendaftaran untuk melihat status penerimaan di sekolah ini.</p>
+          </div>
+
+          <div class="bg-white p-6 rounded-3xl border shadow-xl space-y-4">
+            <input 
+              type="text" 
+              id="inputSearchLulus" 
+              placeholder="🔍 Ketik Nama Siswa atau No. Pendaftaran..." 
+              class="w-full text-xs p-3.5 bg-slate-50 rounded-xl border focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium"
+            />
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-100 font-bold border-b">
+                  <tr>
+                    <th class="p-3">No. Reg</th>
+                    <th class="p-3">Nama Calon Murid</th>
+                    <th class="p-3">Asal Sekolah</th>
+                    <th class="p-3 text-center">Status di Sekolah Ini</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyLulus" class="divide-y">
+                  {listLulus.length === 0 ? (
+                    <tr>
+                      <td colspan="4" class="p-8 text-center text-slate-400 font-medium">
+                        Belum ada data siswa yang ditetapkan status penerimaannya oleh panitia.
+                      </td>
+                    </tr>
+                  ) : (
+                    listLulus.map(item => (
+                      <tr class="row-lulus hover:bg-slate-50 transition">
+                        <td class="p-3 font-black text-emerald-800">{item.no_pendaftaran}</td>
+                        <td class="p-3 font-extrabold text-slate-900">{item.nama_siswa}</td>
+                        <td class="p-3 text-slate-500">{item.asal_sekolah || '-'}</td>
+                        <td class="p-3 text-center">
+                          <span class={`font-black px-3 py-1 rounded-full text-[10px] ${
+                            item.status_kelulusan === 'Diterima' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-rose-100 text-rose-800 border border-rose-300'
+                          }`}>
+                            {item.status_kelulusan === 'Diterima' ? '🎉 DITERIMA DI SEKOLAH INI' : '❌ TIDAK DITERIMA DI SEKOLAH INI'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 py-4 text-center text-xs border-t border-slate-800">
+      © 2026 {namaSekolah}. All Rights Reserved.
+    </footer>
+
+    <script>
+      const input = document.getElementById('inputSearchLulus') as HTMLInputElement | null;
+      input?.addEventListener('input', () => {
+        const query = (input.value || '').toLowerCase().trim();
+        document.querySelectorAll('.row-lulus').forEach(el => {
+          const row = el as HTMLElement;
+          const text = row.textContent ? row.textContent.toLowerCase() : '';
+          row.style.display = text.includes(query) ? '' : 'none';
+        });
+      });
+    </script>
+  </body>
+</html>

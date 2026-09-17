@@ -1,0 +1,292 @@
+---
+import '../../styles/global.css';
+import mysql from 'mysql2/promise';
+
+const namaSekolah = "MI Hidayatul Husna Krasak";
+const alamatSekolah = "Krasak, Pecangaan, Jepara";
+const tahunAjaran = "2027/2028";
+
+let listRekap: any[] = [];
+try {
+  const connection: any = await mysql.createConnection({
+    host: 'localhost', user: 'root', password: '', database: 'pmbm_madrasah',
+  });
+
+  const [sRows] = await connection.query(`
+    SELECT p.id, p.no_pendaftaran, p.nama_siswa, p.nama_ayah, p.nik_siswa,
+           (SELECT COUNT(*) FROM kuesioner_jawaban kj WHERE kj.pendaftar_id = p.id) as total_jawaban
+    FROM pendaftar p 
+    ORDER BY p.id DESC
+  `);
+  listRekap = sRows as any[];
+
+  await connection.end();
+} catch (err) {}
+---
+
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <title>Rekap Kuesioner Karakteristik - {namaSekolah}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style> 
+      body { font-family: 'Plus Jakarta Sans', sans-serif; } 
+      @media print {
+        body * { visibility: hidden; }
+        #areaCetakKuis, #areaCetakKuis * { visibility: visible; }
+        #areaCetakKuis { position: absolute; left: 0; top: 0; width: 100%; display: block !important; background: white; padding: 20px; }
+        .no-print { display: none !important; }
+      }
+    </style>
+  </head>
+  <body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col justify-between">
+
+    <!-- HEADER ADMIN -->
+    <header class="bg-emerald-900 text-white sticky top-0 z-40 shadow-lg border-b border-emerald-800">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="/admin" class="bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition">
+          ← Dashboard Admin
+        </a>
+        <h1 class="font-extrabold text-xs sm:text-base text-right">Rekap Kuesioner Karakteristik</h1>
+      </div>
+    </header>
+
+    <!-- KONTEN UTAMA -->
+    <main class="max-w-7xl mx-auto px-3 sm:px-4 py-6 w-full space-y-6 flex-1">
+      
+      <!-- PENCARIAN & FILTER (RESPONSIF) -->
+      <section class="bg-white p-4 sm:p-5 rounded-3xl border shadow-sm flex flex-col sm:flex-row justify-between items-center gap-3">
+        <div class="w-full sm:w-96">
+          <input 
+            type="text" 
+            id="inputCariSiswa" 
+            placeholder="🔍 Cari Nama Siswa / No. Pendaftaran..." 
+            class="w-full text-xs p-3.5 bg-slate-50 rounded-xl border border-slate-200 font-medium focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+
+        <div class="w-full sm:w-auto">
+          <select id="filterStatusKuis" class="w-full sm:w-auto text-xs p-3.5 bg-slate-50 rounded-xl border border-slate-200 font-bold">
+            <option value="semua">Semua Status</option>
+            <option value="sudah">Sudah Mengisi Kuesioner</option>
+            <option value="belum">Belum Mengisi Kuesioner</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- DAFTAR KARTU / TABEL RESPONSIF (MOBILE FRIENDLY) -->
+      <section class="bg-white p-4 sm:p-6 rounded-3xl border shadow-sm space-y-4">
+        <h2 class="font-extrabold text-slate-900 text-sm">👤 Daftar Siswa & Status Kuesioner</h2>
+        
+        {listRekap.length === 0 ? (
+          <div class="p-8 text-center text-slate-400 font-medium text-xs">
+            Belum ada data pendaftar siswa di database.
+          </div>
+        ) : (
+          <div class="space-y-3" id="listSiswaContainer">
+            {listRekap.map(item => {
+              const status = item.total_jawaban > 0 ? 'sudah' : 'belum';
+              return (
+                <div 
+                  class="row-siswa bg-slate-50 hover:bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition"
+                  data-status={status}
+                  data-search={`${item.no_pendaftaran} ${item.nama_siswa} ${item.nama_ayah}`.toLowerCase()}
+                >
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-black text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                        {item.no_pendaftaran}
+                      </span>
+                      <span class={`font-bold px-2.5 py-0.5 rounded-full text-[10px] ${
+                        status === 'sudah' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'
+                      }`}>
+                        {status === 'sudah' ? '✅ Sudah Mengisi' : '⚠️ Belum Mengisi'}
+                      </span>
+                    </div>
+                    <h3 class="font-extrabold text-sm text-slate-900">{item.nama_siswa}</h3>
+                    <p class="text-[11px] text-slate-500">Wali: <span class="font-semibold text-slate-700">{item.nama_ayah}</span></p>
+                  </div>
+
+                  <!-- TOMBOL AKSI (DISESUAIKAN UNTUK HP & TOUCHSCREEN) -->
+                  <div class="flex items-center gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 justify-end flex-wrap">
+                    <a 
+                      href={`/admin/isi-kuisoner?id=${item.id}`} 
+                      class="flex-1 sm:flex-none bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs inline-flex items-center justify-center gap-1 transition shadow-sm active:scale-95"
+                    >
+                      {status === 'sudah' ? '✏️ Edit / Lihat' : '➕ Isi Kuesioner'}
+                    </a>
+
+                    {status === 'sudah' && (
+                      <button 
+                        type="button"
+                        data-id={item.id} 
+                        data-noreg={item.no_pendaftaran}
+                        data-namasiswa={item.nama_siswa}
+                        data-namawali={item.nama_ayah}
+                        class="btn-cetak-rekap bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition shadow-sm inline-flex items-center justify-center"
+                      >
+                        🖨️ Cetak
+                      </button>
+                    )}
+
+                    <button 
+                      type="button"
+                      data-id={item.id} 
+                      class="btn-hapus-kuis bg-rose-100 hover:bg-rose-200 active:scale-95 text-rose-700 font-bold px-3 py-2 rounded-xl text-xs transition inline-flex items-center justify-center"
+                      title="Hapus Kuesioner"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </main>
+
+    <!-- AREA CETAK KHUSUS (TERSEMBUNYI KECUALI SAAT PRINT) -->
+    <div id="areaCetakKuis" class="hidden">
+      <div class="max-w-2xl mx-auto space-y-6 text-xs text-slate-800">
+        <div class="flex items-center gap-4 border-b-2 border-slate-800 pb-4">
+          <img src="/logo.png" alt="Logo" class="w-14 h-14 object-contain" onerror="this.remove()"/>
+          <div>
+            <h2 class="font-black text-base uppercase">{namaSekolah}</h2>
+            <p class="text-[10px]">{alamatSekolah} — PMBM TA {tahunAjaran}</p>
+            <h3 class="font-extrabold text-sm mt-1 text-emerald-900">HASIL LEMBAR KUESIONER KARAKTERISTIK SISWA</h3>
+          </div>
+        </div>
+
+        <div class="bg-slate-50 p-3 rounded border space-y-1">
+          <p><strong>No. Pendaftaran:</strong> <span id="cetakNoReg" class="font-black"></span></p>
+          <p><strong>Nama Calon Siswa:</strong> <span id="cetakNamaSiswa" class="font-bold"></span></p>
+          <p><strong>Nama Orang Tua:</strong> <span id="cetakNamaWali"></span></p>
+        </div>
+
+        <div class="space-y-3">
+          <p class="font-bold border-b pb-1">Rincian Jawaban Kuesioner:</p>
+          <div id="containerHasilCetak" class="space-y-3">
+            <!-- Diisi dinamis oleh JavaScript sebelum print -->
+          </div>
+        </div>
+
+        <div class="flex justify-between pt-12 text-center">
+          <div>
+            <p>Orang Tua / Wali Murid,</p>
+            <br/><br/>
+            <p id="cetakTtdOrtu" class="font-bold underline">( Nama Wali )</p>
+          </div>
+          <div>
+            <p>Panitia Penilai PMBM,</p>
+            <br/><br/>
+            <p class="font-bold underline">( Panitia Madrasah )</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t py-4 text-center text-xs text-slate-500">
+      © 2026 {namaSekolah}. Panel Rekap Kuesioner.
+    </footer>
+
+    <!-- SCRIPT INTERAKTIF (OPTIMIZED UNTUK TOUCHSCREEN & HP) -->
+    <script>
+      if (!sessionStorage.getItem('isAdminLoggedIn')) window.location.href = '/admin/login';
+
+      // 1. Pencarian & Filter Status
+      const inputCari = document.getElementById('inputCariSiswa') as HTMLInputElement;
+      const filterStatus = document.getElementById('filterStatusKuis') as HTMLSelectElement;
+
+      function filterTabel() {
+        const keyword = (inputCari?.value || '').toLowerCase();
+        const statusVal = filterStatus?.value || 'semua';
+
+        document.querySelectorAll('.row-siswa').forEach((row: any) => {
+          const searchText = row.getAttribute('data-search') || '';
+          const rowStatus = row.getAttribute('data-status');
+
+          const matchKeyword = searchText.includes(keyword);
+          const matchStatus = statusVal === 'semua' || rowStatus === statusVal;
+
+          row.style.display = matchKeyword && matchStatus ? 'flex' : 'none';
+        });
+      }
+
+      inputCari?.addEventListener('input', filterTabel);
+      filterStatus?.addEventListener('change', filterTabel);
+
+      // 2. Tombol Cetak Rekap Kuesioner (Support Mobile Touch Event)
+      const areaCetakKuis = document.getElementById('areaCetakKuis');
+      const cetakNoReg = document.getElementById('cetakNoReg');
+      const cetakNamaSiswa = document.getElementById('cetakNamaSiswa');
+      const cetakNamaWali = document.getElementById('cetakNamaWali');
+      const cetakTtdOrtu = document.getElementById('cetakTtdOrtu');
+      const containerHasilCetak = document.getElementById('containerHasilCetak');
+
+      document.querySelectorAll('.btn-cetak-rekap').forEach(btn => {
+        btn.addEventListener('click', async (e: any) => {
+          e.preventDefault();
+          const currentBtn = e.currentTarget;
+          const pendaftarId = currentBtn.getAttribute('data-id');
+          const noReg = currentBtn.getAttribute('data-noreg');
+          const namaSiswa = currentBtn.getAttribute('data-namasiswa');
+          const namaWali = currentBtn.getAttribute('data-namawali');
+          
+          try {
+            const res = await fetch(`/api/kuesioner-jawaban?pendaftar_id=${pendaftarId}`);
+            const data = await res.json();
+
+            if (!data.success || !data.rincian || data.rincian.length === 0) {
+              return alert('⚠️ Siswa ini belum memiliki data jawaban kuesioner untuk dicetak.');
+            }
+
+            if (cetakNoReg) cetakNoReg.innerText = noReg || '-';
+            if (cetakNamaSiswa) cetakNamaSiswa.innerText = namaSiswa || '-';
+            if (cetakNamaWali) cetakNamaWali.innerText = namaWali || '-';
+            if (cetakTtdOrtu) cetakTtdOrtu.innerText = `( ${namaWali || 'Orang Tua'} )`;
+
+            if (containerHasilCetak) {
+              containerHasilCetak.innerHTML = data.rincian.map((r: any, idx: number) => `
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <p class="font-bold text-slate-800">${idx + 1}. ${r.pertanyaan}</p>
+                  <p class="text-emerald-800 font-extrabold pl-4">↳ Jawaban: ${r.jawaban}</p>
+                </div>
+              `).join('');
+            }
+
+            areaCetakKuis?.classList.remove('hidden');
+            window.print();
+            areaCetakKuis?.classList.add('hidden');
+
+          } catch (err) {
+            console.error("Error cetak rekap:", err);
+            alert('❌ Gagal memuat data cetak dari server.');
+          }
+        });
+      });
+
+      // 3. Hapus Jawaban Kuesioner
+      document.querySelectorAll('.btn-hapus-kuis').forEach(btn => {
+        btn.addEventListener('click', async (e: any) => {
+          e.preventDefault();
+          if (confirm('Yakin ingin menghapus seluruh jawaban kuesioner siswa ini?')) {
+            const id = e.currentTarget.getAttribute('data-id');
+            const res = await fetch('/api/kuesioner-jawaban', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'hapus_jawaban', pendaftar_id: id })
+            });
+            if ((await res.json()).success) {
+              alert('✅ Jawaban kuesioner berhasil dihapus.');
+              location.reload();
+            }
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

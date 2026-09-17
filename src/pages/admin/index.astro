@@ -1,0 +1,680 @@
+---
+import '../../styles/global.css';
+import mysql from 'mysql2/promise';
+
+const namaSekolah = "MI Hidayatul Husna Krasak";
+const tahunAjaran = "2027/2028";
+
+let pendaftarList: any[] = [];
+let dbError = false;
+
+try {
+  const connection: any = await mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'pmbm_madrasah',
+  });
+  
+  const [rows] = await connection.query('SELECT * FROM pendaftar ORDER BY id DESC');
+  pendaftarList = rows as any[];
+  await connection.end();
+} catch (error) {
+  console.error("Gagal membaca database MySQL di Admin:", error);
+  dbError = true;
+}
+
+const listValidasi = pendaftarList.filter(i => i.status_pendaftaran === 'Sudah Validasi');
+const listPending = pendaftarList.filter(i => i.status_pendaftaran === 'Pending' || !i.status_pendaftaran);
+const listBantuan = pendaftarList.filter(i => i.bantuan_sosial && i.bantuan_sosial !== '-');
+---
+
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <title>Panel Admin PMBM - {namaSekolah}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
+  </head>
+  <body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col justify-between">
+
+    <!-- HEADER ADMIN (RESPONSIF) -->
+    <header class="bg-emerald-900 text-white sticky top-0 z-40 shadow-md border-b border-emerald-800">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+          <div class="flex items-center gap-2.5">
+            <img 
+              src="/logo.png" 
+              alt="Logo MI" 
+              class="w-9 h-9 object-contain drop-shadow" 
+              onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-9 h-9 bg-white text-emerald-900 font-black text-xs flex items-center justify-center rounded-xl\'>MI</div>';"
+            />
+            <div>
+              <h1 class="font-extrabold text-xs sm:text-sm leading-none text-white">{namaSekolah}</h1>
+              <p class="text-[10px] text-emerald-300 font-semibold mt-0.5">PMBM {tahunAjaran}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <a href="/" class="bg-emerald-800 hover:bg-emerald-700 text-emerald-100 font-bold text-xs px-3.5 py-2 rounded-xl border border-emerald-700 transition">
+            🌐 Web Utama
+          </a>
+          <button id="btnLogoutAdmin" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition">
+            🚪 Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-3 sm:px-4 py-6 w-full space-y-6 flex-1">
+      
+      {dbError && (
+        <div class="bg-amber-100 border border-amber-300 text-amber-900 p-4 rounded-2xl text-xs font-bold">
+          ⚠️ MySQL XAMPP belum aktif / belum terhubung. Pastikan XAMPP dalam status START untuk membaca database.
+        </div>
+      )}
+
+      <!-- KARTU RINGKASAN STATISTIK -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <p class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Pendaftar</p>
+          <p class="text-xl sm:text-2xl font-black text-slate-900">{pendaftarList.length} <span class="text-xs font-normal text-slate-500">Siswa</span></p>
+        </div>
+        
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <p class="text-[10px] sm:text-[11px] font-bold text-amber-500 uppercase tracking-wider">Menunggu Validasi</p>
+          <p class="text-xl sm:text-2xl font-black text-amber-600">{listPending.length} <span class="text-xs font-normal text-slate-500">Berkas</span></p>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <p class="text-[10px] sm:text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Sudah Validasi</p>
+          <p class="text-xl sm:text-2xl font-black text-emerald-600">{listValidasi.length} <span class="text-xs font-normal text-slate-500">Siswa</span></p>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+          <p class="text-[10px] sm:text-[11px] font-bold text-teal-600 uppercase tracking-wider">Penerima Bantuan</p>
+          <p class="text-xl sm:text-2xl font-black text-teal-600">{listBantuan.length} <span class="text-xs font-normal text-slate-500">Siswa</span></p>
+        </div>
+      </div>
+
+      <!-- TAB NAVIGATION ADMIN -->
+      <div class="flex overflow-x-auto whitespace-nowrap border-b border-slate-200 bg-white p-1.5 rounded-2xl shadow-sm gap-2 no-scrollbar">
+        <button id="tabBtnSemua" class="tab-btn active bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shrink-0">
+          📋 Semua Pendaftar ({pendaftarList.length})
+        </button>
+        <button id="tabBtnValidasi" class="tab-btn text-slate-600 hover:text-emerald-800 font-bold text-xs px-4 py-2.5 rounded-xl transition shrink-0">
+          ✅ Kelulusan & Validasi ({listValidasi.length})
+        </button>
+        <button id="tabBtnChat" class="tab-btn text-slate-600 hover:text-emerald-800 font-bold text-xs px-4 py-2.5 rounded-xl transition shrink-0">
+          💬 Live Chat Inbox
+        </button>
+        <button id="tabBtnPengaturan" class="tab-btn text-slate-600 hover:text-emerald-800 font-bold text-xs px-4 py-2.5 rounded-xl transition shrink-0">
+          ⚙️ Pengaturan Web
+        </button>
+        
+        <a href="/admin/kuisoner" class="bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-xs px-4 py-2.5 rounded-xl border border-teal-200 transition inline-flex items-center gap-1.5 shrink-0 ml-auto">
+          📊 Rekap Kuesioner
+        </a>
+        <a href="/admin/pertanyaan" class="bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs px-4 py-2.5 rounded-xl border border-amber-200 transition inline-flex items-center gap-1.5 shrink-0">
+          ⚙️ Atur Kuesioner
+        </a>
+      </div>
+
+      <!-- TAB 1: SEMUA PENDAFTAR -->
+      <section id="tabSemua" class="tab-content bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-3 pb-2 border-b">
+          <h2 class="font-extrabold text-slate-900 text-sm sm:text-base">Kelola Seluruh Pendaftar</h2>
+          <div class="w-full sm:w-80">
+            <input 
+              type="text" 
+              id="inputCariPendaftar" 
+              placeholder="🔍 Cari Nama, No. Reg, atau Desa..." 
+              class="w-full text-xs p-3 bg-slate-50 rounded-xl border border-slate-300 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            >
+          </div>
+        </div>
+        
+        <div class="space-y-3" id="containerDaftarSiswa">
+          {pendaftarList.length === 0 ? (
+            <div class="p-8 text-center text-slate-400 font-medium text-xs">
+              Belum ada pendaftar baru yang masuk ke database.
+            </div>
+          ) : (
+            pendaftarList.map((item, index) => (
+              <div 
+                class="row-item-pendaftar bg-slate-50 hover:bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition"
+                data-index={index}
+                data-search={`${item.no_pendaftaran} ${item.nama_siswa} ${item.alamat_desa} ${item.alamat_kecamatan} ${item.nama_ayah}`.toLowerCase()}
+              >
+                <div class="flex items-start gap-3.5 w-full sm:w-auto">
+                  <div class="w-12 h-14 bg-white border border-slate-300 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-sm">
+                    {item.foto_siswa ? (
+                      <img src={item.foto_siswa} alt="Foto" class="w-full h-full object-cover"/>
+                    ) : (
+                      <span class="text-[9px] text-slate-400 font-bold text-center px-0.5">No Foto</span>
+                    )}
+                  </div>
+
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <span class="text-xs font-black text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-200">
+                        {item.no_pendaftaran}
+                      </span>
+                      <span class={`font-bold px-2.5 py-0.5 rounded-full text-[10px] ${
+                        item.status_pendaftaran === 'Sudah Validasi' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                        item.status_pendaftaran === 'Batal' ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300'
+                      }`}>
+                        {item.status_pendaftaran || 'Pending'}
+                      </span>
+                    </div>
+
+                    <h3 class="font-extrabold text-sm sm:text-base text-slate-900">{item.nama_siswa}</h3>
+                    
+                    <p class="text-[11px] text-slate-500">
+                      📍 Alamat: <strong class="text-slate-700">Desa {item.alamat_desa || '-'}, Kec. {item.alamat_kecamatan || '-'}</strong>
+                    </p>
+
+                    <p class="text-[11px] text-slate-500">
+                      Wali: <strong class="text-slate-700">{item.nama_ayah}</strong> | 
+                      <a href={`https://wa.me/62${item.hp_ayah ? item.hp_ayah.replace(/^0/, '') : ''}`} target="_blank" class="text-emerald-700 font-bold ml-1 hover:underline">
+                        📱 {item.hp_ayah || '-'}
+                      </a>
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 justify-end flex-wrap shrink-0">
+                  <a 
+                    href={`/admin/detail?id=${item.id}`} 
+                    class="bg-emerald-100 hover:bg-emerald-200 active:scale-95 text-emerald-800 font-bold px-3 py-2 rounded-xl text-xs inline-flex items-center gap-1 transition shadow-sm"
+                  >
+                    📋 Detail & Edit
+                  </a>
+                  <a 
+                    href={`/admin/detail?id=${item.id}`} 
+                    class="bg-slate-200 hover:bg-slate-300 active:scale-95 text-slate-800 font-bold px-3 py-2 rounded-xl text-xs inline-flex items-center gap-1 transition shadow-sm"
+                  >
+                    🖨️ Cetak
+                  </a>
+                  <button data-id={item.id} class="btn-hapus bg-rose-100 hover:bg-rose-200 active:scale-95 text-rose-700 font-bold px-3 py-2 rounded-xl text-xs transition shadow-sm" title="Hapus Data">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div id="paginationContainer" class="flex items-center justify-between pt-4 border-t border-slate-200 text-xs font-semibold text-slate-600">
+          <p id="paginationInfo">Menampilkan data...</p>
+          <div id="paginationButtons" class="flex items-center gap-1.5 flex-wrap"></div>
+        </div>
+      </section>
+
+      <!-- TAB 2: VALIDASI & KELULUSAN -->
+      <section id="tabValidasi" class="tab-content hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-4">
+          <div>
+            <h2 class="font-extrabold text-slate-900 text-sm sm:text-base">Penetapan Kelulusan Murid</h2>
+            <p class="text-xs text-slate-500">Centang siswa di bawah ini lalu tentukan status kelulusan secara massal.</p>
+          </div>
+          <div class="flex gap-2 w-full sm:w-auto">
+            <button id="btnSetLulus" class="flex-1 sm:flex-none bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition">
+              ✅ Setel DITERIMA
+            </button>
+            <button id="btnSetGagal" class="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition">
+              ❌ TIDAK DITERIMA
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          {listValidasi.length === 0 ? (
+            <div class="p-8 text-center text-slate-400 font-medium text-xs">
+              Belum ada siswa yang divalidasi berkasnya oleh panitia.
+            </div>
+          ) : (
+            listValidasi.map((item) => (
+              <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                  <input type="checkbox" value={item.id} class="chk-siswa w-5 h-5 rounded text-emerald-700 focus:ring-emerald-500 shrink-0">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-black text-emerald-800">{item.no_pendaftaran}</span>
+                      <span class={`font-extrabold px-2.5 py-0.5 rounded-full text-[10px] ${
+                        item.status_kelulusan === 'Diterima' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                        item.status_kelulusan === 'Tidak Diterima' ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {item.status_kelulusan || 'Diproses'}
+                      </span>
+                    </div>
+                    <h3 class="font-extrabold text-sm text-slate-900 mt-0.5">{item.nama_siswa}</h3>
+                    <p class="text-[11px] text-slate-500">
+                      Pendaftaran: Rp {(item.biaya_pendaftaran || 0).toLocaleString('id-ID')} | Seragam: Rp {(item.biaya_seragam || 0).toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                </div>
+                <div class="w-full sm:w-auto flex justify-end">
+                  <a href={`/admin/detail?id=${item.id}`} class="text-xs font-bold bg-white border border-slate-300 px-3 py-1.5 rounded-xl text-slate-700 shadow-sm">
+                    🔍 Periksa Biaya
+                  </a>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      <!-- TAB 3: LIVE CHAT -->
+      <section id="tabChat" class="tab-content hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div class="lg:col-span-4 border-b lg:border-b-0 lg:border-r pb-4 lg:pr-4 space-y-2">
+          <div class="flex justify-between items-center border-b pb-2">
+            <h3 class="font-bold text-xs text-slate-700">Daftar Obrolan Wali Murid</h3>
+            <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Live</span>
+          </div>
+          <div id="adminChatList" class="space-y-1.5 h-64 lg:h-80 overflow-y-auto text-xs"></div>
+        </div>
+        
+        <div class="lg:col-span-8 flex flex-col justify-between h-80 sm:h-96 bg-slate-50 p-3 sm:p-4 rounded-2xl border border-slate-200">
+          <div class="flex justify-between items-center border-b border-slate-200 pb-2">
+            <span id="chatActiveTitle" class="font-extrabold text-xs text-slate-800 truncate pr-2">Pilih Kontak Obrolan</span>
+            <button id="btnHapusChatAktif" class="hidden bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold text-[10px] px-2.5 py-1 rounded-lg border border-rose-200 transition shrink-0">
+              🗑️ Hapus Chat
+            </button>
+          </div>
+          
+          <div id="adminChatArea" class="space-y-2 overflow-y-auto text-xs pr-2 my-2 flex-1">
+            <p class="text-slate-400 text-center py-12 font-medium">Pilih salah satu kontak di sebelah kiri.</p>
+          </div>
+          
+          <form id="formReplyChat" class="flex gap-2 pt-2 border-t border-slate-200">
+            <input type="text" id="inputReplyChat" placeholder="Ketik balasan panitia..." required class="w-full text-xs p-3 bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium">
+            <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 sm:px-5 py-2 rounded-xl shrink-0 transition shadow">
+              Kirim
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- TAB 4: PENGATURAN WEB LENGKAP (STATUS, GELOMBANG, ALUR, JADWAL) -->
+      <section id="tabPengaturan" class="tab-content hidden bg-white rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 space-y-4">
+        <div class="border-b pb-3">
+          <h2 class="font-extrabold text-slate-900 text-sm sm:text-base">Pengaturan Alur, Status & Jadwal Pendaftaran</h2>
+          <p class="text-xs text-slate-500">Kontrol operasional dan konten halaman utama secara real-time dari panel ini.</p>
+        </div>
+
+        <form id="formAppSettings" class="space-y-4 text-xs">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Status Pendaftaran Online</label>
+              <select name="status_pendaftaran" id="settingStatus" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-300 font-bold">
+                <option value="BUKA">🟢 BUKA (Pendaftaran Aktif)</option>
+                <option value="TUTUP">🔴 TUTUP (Pendaftaran Ditutup)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Keterangan Gelombang / Tahun Ajaran</label>
+              <input type="text" name="gelombang" id="settingGelombang" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-300 font-bold" placeholder="Contoh: Gelombang 1 Tahun Ajaran 2027/2028">
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Pesan / Pengumuman Jika Pendaftaran Ditutup</label>
+            <textarea name="pesan_tutup" id="settingPesan" rows="2" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-300 font-medium" placeholder="Pesan yang akan muncul jika calon pendaftar mengklik tombol daftar saat ditutup"></textarea>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Pengaturan Alur Pendaftaran (Pisahkan dengan baris baru)</label>
+              <textarea name="alur_text" id="settingAlur" rows="4" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-300 font-medium text-[11px]" placeholder="1. Isi Formulir Online&#10;2. Verifikasi Dokumen Fisik&#10;3. Tes Observasi Siswa&#10;4. Pengumuman Kelulusan"></textarea>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Pengaturan Jadwal Penting (Pisahkan dengan baris baru)</label>
+              <textarea name="jadwal_text" id="settingJadwal" rows="4" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-300 font-medium text-[11px]" placeholder="Gelombang I: 1 Feb - 30 Apr 2027&#10;Gelombang II: 1 Mei - 20 Jun 2027&#10;Tes Observasi: 25 Jun 2027&#10;Pengumuman: 30 Jun 2027"></textarea>
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button type="submit" id="btnSaveSettings" class="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs px-6 py-3 rounded-xl shadow transition">
+              💾 Simpan Perubahan Pengaturan
+            </button>
+          </div>
+        </form>
+      </section>
+
+    </main>
+
+    <!-- FOOTER ADMIN -->
+    <footer class="bg-white border-t py-4 text-center text-xs text-slate-500">
+      © 2026 {namaSekolah}. Panel Kelola PMBM Online.
+    </footer>
+
+    <!-- SCRIPT UTAMA INTERAKTIF -->
+    <script>
+      if (!sessionStorage.getItem('isAdminLoggedIn')) {
+        window.location.href = '/admin/login';
+      }
+
+      document.getElementById('btnLogoutAdmin')?.addEventListener('click', () => {
+        if (confirm('Apakah Anda yakin ingin keluar dari panel admin?')) {
+          sessionStorage.removeItem('isAdminLoggedIn');
+          window.location.href = '/admin/login';
+        }
+      });
+
+      // Tab Navigation
+      const tabBtns = document.querySelectorAll('.tab-btn');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      tabBtns.forEach((btn, idx) => {
+        btn.addEventListener('click', () => {
+          tabBtns.forEach(b => {
+            b.classList.remove('bg-emerald-700', 'text-white');
+            b.classList.add('text-slate-600');
+          });
+          tabContents.forEach(c => c.classList.add('hidden'));
+
+          btn.classList.add('bg-emerald-700', 'text-white');
+          btn.classList.remove('text-slate-600');
+          tabContents[idx].classList.remove('hidden');
+        });
+      });
+
+      // ── SISTEM PENCARIAN & PAGINATION (20 DATA) ──
+      const rows = Array.from(document.querySelectorAll('.row-item-pendaftar')) as HTMLElement[];
+      const inputCari = document.getElementById('inputCariPendaftar') as HTMLInputElement;
+      const paginationInfo = document.getElementById('paginationInfo');
+      const paginationButtons = document.getElementById('paginationButtons');
+      
+      let currentPage = 1;
+      const itemsPerPage = 20;
+
+      function renderTable() {
+        const keyword = (inputCari?.value || '').toLowerCase().trim();
+
+        const filteredRows = rows.filter(row => {
+          const searchData = row.getAttribute('data-search') || '';
+          return searchData.includes(keyword);
+        });
+
+        const totalFiltered = filteredRows.length;
+        const totalPages = Math.ceil(totalFiltered / itemsPerPage) || 1;
+
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        rows.forEach(r => r.style.display = 'none');
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const currentRows = filteredRows.slice(startIndex, endIndex);
+
+        currentRows.forEach(r => r.style.display = 'flex');
+
+        if (paginationInfo) {
+          if (totalFiltered === 0) {
+            paginationInfo.innerText = `Tidak ada data yang ditemukan.`;
+          } else {
+            paginationInfo.innerText = `Menampilkan ${startIndex + 1} - ${Math.min(endIndex, totalFiltered)} dari ${totalFiltered} siswa`;
+          }
+        }
+
+        if (paginationButtons) {
+          let buttonsHTML = '';
+          buttonsHTML += `<button class="px-3 py-1.5 rounded-lg border text-xs font-bold ${currentPage === 1 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white hover:bg-slate-50 text-slate-700'}" onclick="window.changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+
+          for (let i = 1; i <= totalPages; i++) {
+            if (totalPages <= 7 || i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+              buttonsHTML += `<button class="px-3 py-1.5 rounded-lg border text-xs font-bold ${currentPage === i ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm' : 'bg-white hover:bg-slate-50 text-slate-700'}" onclick="window.changePage(${i})">${i}</button>`;
+            } else if (i === currentPage - 2 || i === currentPage + 2) {
+              buttonsHTML += `<span class="px-1 text-slate-400">...</span>`;
+            }
+          }
+
+          buttonsHTML += `<button class="px-3 py-1.5 rounded-lg border text-xs font-bold ${currentPage === totalPages || totalPages === 0 ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white hover:bg-slate-50 text-slate-700'}" onclick="window.changePage(${currentPage + 1})" ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}>›</button>`;
+
+          paginationButtons.innerHTML = buttonsHTML;
+        }
+      }
+
+      (window as any).changePage = function(page: number) {
+        currentPage = page;
+        renderTable();
+      };
+
+      inputCari?.addEventListener('input', () => {
+        currentPage = 1;
+        renderTable();
+      });
+
+      renderTable();
+
+      // Load & Save Settings Web (Termasuk Alur & Jadwal)
+      async function loadSettings() {
+        try {
+          const res = await fetch('/api/settings');
+          const data = await res.json();
+          if (data.success && data.settings) {
+            const s = data.settings;
+            (document.getElementById('settingStatus') as HTMLSelectElement).value = s.status_pendaftaran;
+            (document.getElementById('settingGelombang') as HTMLInputElement).value = s.gelombang || '';
+            (document.getElementById('settingPesan') as HTMLTextAreaElement).value = s.pesan_tutup || '';
+            (document.getElementById('settingAlur') as HTMLTextAreaElement).value = s.alur_text || '';
+            (document.getElementById('settingJadwal') as HTMLTextAreaElement).value = s.jadwal_text || '';
+          }
+        } catch (err) {}
+      }
+      loadSettings();
+
+      const formAppSettings = document.getElementById('formAppSettings');
+      formAppSettings?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSaveSettings') as HTMLButtonElement;
+        btn.disabled = true;
+        btn.innerText = 'Menyimpan Pengaturan...';
+
+        const formData = new FormData(formAppSettings as HTMLFormElement);
+        const dataObj = Object.fromEntries(formData.entries());
+
+        try {
+          const res = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dataObj)
+          });
+          const result = await res.json();
+          if (result.success) {
+            alert('✅ Pengaturan web berhasil diperbarui!');
+          } else {
+            alert('❌ Gagal memperbarui pengaturan.');
+          }
+        } catch (err) {
+          alert('❌ Terjadi kesalahan koneksi server.');
+        } finally {
+          btn.disabled = false;
+          btn.innerText = '💾 Simpan Perubahan Pengaturan';
+        }
+      });
+
+      // Update Kelulusan Massal
+      async function updateKelulusan(status: string) {
+        const selectedIds = Array.from(document.querySelectorAll('.chk-siswa:checked')).map((c: any) => c.value);
+        if (selectedIds.length === 0) return alert('Pilih minimal satu siswa!');
+
+        try {
+          const res = await fetch('/api/admin-action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'update_kelulusan', ids: selectedIds, status_kelulusan: status })
+          });
+          const result = await res.json();
+          if (result.success) {
+            alert(`✅ Status Kelulusan Berhasil Diubah ke: ${status}`);
+            location.reload();
+          }
+        } catch (err) {
+          alert('❌ Terjadi kesalahan saat memperbarui status.');
+        }
+      }
+
+      document.getElementById('btnSetLulus')?.addEventListener('click', () => updateKelulusan('Diterima'));
+      document.getElementById('btnSetGagal')?.addEventListener('click', () => updateKelulusan('Tidak Diterima'));
+
+      // Hapus Siswa
+      document.querySelectorAll('.btn-hapus').forEach(btn => {
+        btn.addEventListener('click', async (e: any) => {
+          if (confirm('Apakah Anda yakin ingin menghapus data pendaftar ini secara permanen?')) {
+            const id = e.currentTarget.getAttribute('data-id');
+            await fetch('/api/admin-action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'hapus_siswa', id })
+            });
+            location.reload();
+          }
+        });
+      });
+
+      // Live Chat Inbox
+      let activeWaChat = '';
+      let activeNameChat = '';
+      const btnHapusChatAktif = document.getElementById('btnHapusChatAktif');
+      const chatActiveTitle = document.getElementById('chatActiveTitle');
+
+      async function loadAdminChat() {
+        try {
+          const res = await fetch('/api/chat');
+          const data = await res.json();
+          if (!data.success) return;
+
+          const chats = data.chats || [];
+          const chatListEl = document.getElementById('adminChatList');
+          const chatAreaEl = document.getElementById('adminChatArea');
+          if (!chatListEl) return;
+
+          if (chats.length === 0) {
+            chatListEl.innerHTML = `<p class="text-slate-400 text-center py-6 text-[11px]">Belum ada pesan obrolan.</p>`;
+            if (chatAreaEl) {
+              chatAreaEl.innerHTML = `<p class="text-slate-400 text-center py-12 font-medium">Tidak ada percakapan aktif.</p>`;
+            }
+            btnHapusChatAktif?.classList.add('hidden');
+            if (chatActiveTitle) chatActiveTitle.innerText = 'Pilih Kontak Obrolan';
+            activeWaChat = '';
+            return;
+          }
+
+          const contacts: any = {};
+          chats.forEach((c: any) => {
+            contacts[c.sender_wa] = c.sender_name;
+          });
+
+          chatListEl.innerHTML = Object.keys(contacts).map(wa => `
+            <div class="flex items-center justify-between p-2 rounded-xl border ${activeWaChat === wa ? 'bg-emerald-100 border-emerald-300 font-bold' : 'bg-white hover:bg-slate-50'} transition">
+              <button data-wa="${wa}" data-name="${contacts[wa]}" class="btn-chat-contact text-left flex-1 pr-2 truncate">
+                <p class="font-extrabold text-slate-800 leading-tight truncate">${contacts[wa]}</p>
+                <p class="text-[10px] text-slate-500">📱 ${wa}</p>
+              </button>
+              <button data-wa="${wa}" class="btn-hapus-kontak text-rose-500 hover:text-rose-700 p-1 rounded font-bold text-xs shrink-0" title="Hapus Chat Ini">
+                🗑️
+              </button>
+            </div>
+          `).join('');
+
+          document.querySelectorAll('.btn-chat-contact').forEach(btn => {
+            btn.addEventListener('click', (e: any) => {
+              const target = e.currentTarget as HTMLButtonElement;
+              activeWaChat = target.getAttribute('data-wa') || '';
+              activeNameChat = target.getAttribute('data-name') || '';
+
+              if (chatActiveTitle) chatActiveTitle.innerText = `${activeNameChat} (${activeWaChat})`;
+              btnHapusChatAktif?.classList.remove('hidden');
+
+              renderActiveChat(chats.filter((c: any) => c.sender_wa === activeWaChat));
+            });
+          });
+
+          document.querySelectorAll('.btn-hapus-kontak').forEach(btn => {
+            btn.addEventListener('click', async (e: any) => {
+              e.stopPropagation();
+              const wa = e.currentTarget.getAttribute('data-wa');
+              if (confirm(`Yakin ingin menghapus seluruh obrolan dari nomor WhatsApp ${wa}?`)) {
+                await hapusChatWa(wa);
+              }
+            });
+          });
+
+          if (activeWaChat) {
+            renderActiveChat(chats.filter((c: any) => c.sender_wa === activeWaChat));
+          }
+
+        } catch (err) {}
+      }
+
+      function renderActiveChat(chatMessages: any[]) {
+        const area = document.getElementById('adminChatArea') as HTMLElement | null;
+        if (!area) return;
+        
+        if (chatMessages.length === 0) {
+          area.innerHTML = `<p class="text-slate-400 text-center py-12 font-medium">Obrolan telah dihapus.</p>`;
+          return;
+        }
+
+        area.innerHTML = chatMessages.map(c => `
+          <div class="p-2.5 rounded-2xl max-w-[85%] ${c.sender_type === 'admin' ? 'bg-emerald-700 text-white ml-auto' : 'bg-white border text-slate-800'}">
+            <p class="font-bold text-[10px] ${c.sender_type === 'admin' ? 'text-emerald-200' : 'text-emerald-800'}">${c.sender_name}</p>
+            <p class="mt-0.5">${c.message}</p>
+          </div>
+        `).join('');
+        area.scrollTop = area.scrollHeight;
+      }
+
+      async function hapusChatWa(wa: string) {
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wa })
+          });
+          const result = await res.json();
+          if (result.success) {
+            if (activeWaChat === wa) {
+              activeWaChat = '';
+              btnHapusChatAktif?.classList.add('hidden');
+              if (chatActiveTitle) chatActiveTitle.innerText = 'Pilih Kontak Obrolan';
+            }
+            loadAdminChat();
+          }
+        } catch (err) {
+          alert('❌ Gagal menghapus obrolan.');
+        }
+      }
+
+      btnHapusChatAktif?.addEventListener('click', () => {
+        if (activeWaChat && confirm(`Yakin menghapus obrolan ini (${activeWaChat})?`)) {
+          hapusChatWa(activeWaChat);
+        }
+      });
+
+      document.getElementById('formReplyChat')?.addEventListener('submit', async (e: Event) => {
+        e.preventDefault();
+        const input = document.getElementById('inputReplyChat') as HTMLInputElement;
+        if (!activeWaChat || !input.value.trim()) return alert('Silahkan pilih salah satu kontak obrolan terlebih dahulu!');
+
+        await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sender_name: 'Panitia (Admin)', sender_wa: activeWaChat, message: input.value, sender_type: 'admin' })
+        });
+        input.value = '';
+        loadAdminChat();
+      });
+
+      setInterval(loadAdminChat, 4000);
+      loadAdminChat();
+    </script>
+  </body>
+</html>

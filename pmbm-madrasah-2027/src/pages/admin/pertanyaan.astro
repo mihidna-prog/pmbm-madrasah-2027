@@ -1,0 +1,157 @@
+---
+import '../../styles/global.css';
+import mysql from 'mysql2/promise';
+
+const namaSekolah = "MI Hidayatul Husna Krasak";
+const tahunAjaran = "2027/2028";
+
+let listPertanyaan: any[] = [];
+try {
+  const connection: any = await mysql.createConnection({
+    host: 'localhost', user: 'root', password: '', database: 'pmbm_madrasah',
+  });
+  const [rows] = await connection.query('SELECT * FROM kuesioner_pertanyaan ORDER BY id ASC');
+  listPertanyaan = rows as any[];
+  await connection.end();
+} catch (err) {}
+---
+
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <title>Kelola Pertanyaan Kuesioner - {namaSekolah}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } </style>
+  </head>
+  <body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col justify-between">
+
+    <header class="bg-emerald-900 text-white sticky top-0 z-40 shadow-lg border-b border-emerald-800">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="/admin" class="bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition">
+          ← Kembali ke Dashboard Admin
+        </a>
+        <h1 class="font-extrabold text-sm sm:text-base">Pengaturan Pertanyaan Kuesioner</h1>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-6 w-full space-y-6 flex-1">
+      
+      <!-- FORM TAMBAH PERTANYAAN BARU -->
+      <section class="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+        <h2 class="font-extrabold text-slate-900 text-sm">➕ Tambah Poin Pertanyaan Baru</h2>
+        <form id="formTambahPertanyaan" class="space-y-4 text-xs">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Tulis Pertanyaan / Aspek Karakteristik *</label>
+            <input type="text" id="inputPertanyaan" name="pertanyaan" placeholder="Contoh: Apakah anak sudah lancar membaca huruf hijaiyah?" required class="w-full p-3.5 bg-slate-50 rounded-xl border font-medium">
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Tipe Input Jawaban</label>
+              <select id="selectTipe" name="tipe_input" class="w-full p-3.5 bg-slate-50 rounded-xl border font-bold">
+                <option value="text">Isian Singkat (Text Box)</option>
+                <option value="select">Pilihan Ganda (Dropdown)</option>
+              </select>
+            </div>
+
+            <div id="wrapperOpsi" class="hidden">
+              <label class="block font-bold text-slate-700 mb-1">Pilihan Opsi (Pisahkan dengan koma)</label>
+              <input type="text" id="inputOpsi" name="pilihan_opsi" placeholder="Contoh: Sudah,Belum,Masih Belajar" class="w-full p-3.5 bg-slate-50 rounded-xl border">
+            </div>
+          </div>
+
+          <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-3 rounded-xl shadow transition">
+            Simpan Pertanyaan Baru
+          </button>
+        </form>
+      </section>
+
+      <!-- DAFTAR PERTANYAAN AKTIF -->
+      <section class="bg-white p-6 rounded-3xl border shadow-sm space-y-4">
+        <h2 class="font-extrabold text-slate-900 text-sm">📋 Daftar Pertanyaan Kuesioner Aktif di Formulir</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50 font-bold border-b">
+              <tr>
+                <th class="p-3 w-12">No</th>
+                <th class="p-3">Pertanyaan</th>
+                <th class="p-3">Tipe Input</th>
+                <th class="p-3">Opsi Pilihan</th>
+                <th class="p-3 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y">
+              {listPertanyaan.length === 0 ? (
+                <tr>
+                  <td colspan="5" class="p-6 text-center text-slate-400">Belum ada pertanyaan kuesioner yang dibuat.</td>
+                </tr>
+              ) : (
+                listPertanyaan.map((item, idx) => (
+                  <tr class="hover:bg-slate-50">
+                    <td class="p-3 font-bold">{idx + 1}</td>
+                    <td class="p-3 font-bold text-slate-900">{item.pertanyaan}</td>
+                    <td class="p-3"><span class="bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-bold">{item.tipe_input}</span></td>
+                    <td class="p-3">{item.pilihan_opsi || '-'}</td>
+                    <td class="p-3 text-center">
+                      <button data-id={item.id} class="btn-hapus-pertanyaan bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-3 py-1.5 rounded-lg">🗑️ Hapus</button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="bg-white border-t py-4 text-center text-xs text-slate-500">
+      © 2026 {namaSekolah}. Panel Pertanyaan Kuesioner.
+    </footer>
+
+    <script>
+      if (!sessionStorage.getItem('isAdminLoggedIn')) window.location.href = '/admin/login';
+
+      const selectTipe = document.getElementById('selectTipe') as HTMLSelectElement;
+      const wrapperOpsi = document.getElementById('wrapperOpsi');
+
+      selectTipe?.addEventListener('change', () => {
+        if (selectTipe.value === 'select') wrapperOpsi?.classList.remove('hidden');
+        else wrapperOpsi?.classList.add('hidden');
+      });
+
+      document.getElementById('formTambahPertanyaan')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target as HTMLFormElement;
+        const dataObj = Object.fromEntries(new FormData(form).entries());
+        dataObj.action = 'tambah_pertanyaan';
+
+        const res = await fetch('/api/kuesioner', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataObj)
+        });
+        if ((await res.json()).success) {
+          alert('✅ Pertanyaan berhasil ditambahkan!');
+          location.reload();
+        }
+      });
+
+      document.querySelectorAll('.btn-hapus-pertanyaan').forEach(btn => {
+        btn.addEventListener('click', async (e: any) => {
+          if (confirm('Yakin ingin menghapus pertanyaan ini?')) {
+            const id = e.currentTarget.getAttribute('data-id');
+            await fetch('/api/kuesioner', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'hapus_pertanyaan', id })
+            });
+            location.reload();
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

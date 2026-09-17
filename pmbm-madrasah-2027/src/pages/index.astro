@@ -1,0 +1,421 @@
+---
+import '../styles/global.css';
+import mysql from 'mysql2/promise';
+
+const namaSekolah = "MI Hidayatul Husna Krasak";
+const alamatLengkap = "Krasak, Pecangaan, Jepara";
+const tahunAjaran = "2027/2028";
+
+let settings: any = { 
+  status_pendaftaran: 'BUKA', 
+  gelombang: 'Gelombang 1 Tahun Ajaran 2027/2028', 
+  pesan_tutup: 'Mohon maaf, pendaftaran murid baru untuk gelombang saat ini telah ditutup.',
+  alur_text: '1. Isi Formulir Online\n2. Verifikasi Dokumen Fisik\n3. Tes Observasi Siswa\n4. Pengumuman Kelulusan',
+  jadwal_text: 'Gelombang I (Utama): 1 Februari - 30 April 2027\nGelombang II (Opsional): 1 Mei - 20 Juni 2027\nTes Observasi & Validasi Fisik: 25 Juni 2027\nPengumuman Kelulusan: 30 Juni 2027'
+};
+
+try {
+  const connection: any = await mysql.createConnection({
+    host: 'localhost', user: 'root', password: '', database: 'pmbm_madrasah',
+  });
+  const [rows]: any = await connection.query('SELECT * FROM settings WHERE id = 1');
+  if (rows.length > 0) {
+    settings = rows[0];
+  }
+  await connection.end();
+} catch (err) {
+  console.error("Gagal memuat pengaturan web dari database:", err);
+}
+
+// Format alur dan jadwal dari database (split berdasarkan baris enter)
+const alurList = settings.alur_text ? settings.alur_text.split('\n').filter((x: string) => x.trim() !== '') : [];
+const jadwalList = settings.jadwal_text ? settings.jadwal_text.split('\n').filter((x: string) => x.trim() !== '') : [];
+---
+
+<html lang="id" class="scroll-smooth">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    
+    <title>PMBM {tahunAjaran} - {namaSekolah}</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style> 
+      body { font-family: 'Plus Jakarta Sans', sans-serif; } 
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col justify-between relative pb-20 md:pb-0">
+
+    <!-- NAVBAR ATAS RESMI -->
+    <nav class="bg-emerald-950/95 backdrop-blur-md text-white sticky top-0 z-40 border-b border-emerald-900/80 px-4 py-2.5">
+      <div class="max-w-5xl mx-auto flex justify-between items-center">
+        <a href="/" class="flex items-center gap-2.5 group">
+          <img 
+            src="/logo.png" 
+            alt="Logo MI" 
+            class="w-8 h-8 object-contain drop-shadow group-hover:scale-105 transition"
+            onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'text-amber-400 font-black text-sm\'>MI</span>';"
+          />
+          <span class="font-extrabold text-xs sm:text-sm tracking-tight text-emerald-100">{namaSekolah}</span>
+        </a>
+
+        <div class="flex items-center gap-2">
+          <a 
+            href="/pengumuman" 
+            class="inline-flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-xs px-3.5 py-1.5 rounded-xl transition shadow-md"
+          >
+            <span>📢</span>
+            <span class="hidden sm:inline">Pengumuman</span>
+          </a>
+          <a 
+            href="/admin/login" 
+            class="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-700 active:scale-95 text-emerald-100 font-bold text-xs px-3.5 py-1.5 rounded-xl border border-emerald-700 transition"
+          >
+            <span>🔐</span>
+            <span>Login Admin</span>
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- MAIN KONTEN UTAMA -->
+    <main class="w-full">
+      
+      <!-- HERO BANNER MADRASAH -->
+      <section class="relative bg-emerald-950 text-white min-h-[520px] flex items-center justify-center text-center px-4 py-12 overflow-hidden">
+        <div class="absolute inset-0 z-0 opacity-20 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=1000&auto=format&fit=crop');"></div>
+        <div class="absolute inset-0 bg-gradient-to-b from-emerald-950/90 via-emerald-900/80 to-emerald-950 z-10"></div>
+
+        <div class="relative z-20 max-w-3xl mx-auto space-y-6">
+          <div class="flex justify-center mb-2">
+            <img 
+              src="/logo.png" 
+              alt="Logo MI Hidayatul Husna Krasak" 
+              class="w-28 h-28 md:w-36 md:h-36 object-contain drop-shadow-2xl hover:scale-105 transition duration-300"
+              onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-20 h-20 bg-amber-400 text-slate-950 font-black text-2xl flex items-center justify-center rounded-2xl shadow-xl\'>MI</div>';"
+            />
+          </div>
+
+          <div class="inline-flex items-center gap-2 bg-amber-400 text-slate-950 font-black text-xs px-4 py-1.5 rounded-full shadow-lg tracking-wider">
+            📣 {settings.gelombang}
+          </div>
+
+          <h1 class="text-2xl sm:text-4xl md:text-5xl font-black leading-tight tracking-tight text-white drop-shadow-md">
+            Pendaftaran Murid Baru Madrasah (PMBM) <br/>
+            <span class="text-amber-300 block mt-2">{namaSekolah}</span>
+            <span class="text-emerald-200 text-sm sm:text-lg font-bold block mt-1">{alamatLengkap}</span>
+          </h1>
+
+          <p class="text-xs sm:text-sm text-emerald-100/90 max-w-lg mx-auto leading-relaxed">
+            Sistem Pendaftaran Online Resmi. Praktis, cepat, dan transparan langsung dari perangkat Anda.
+          </p>
+
+          <!-- TOMBOL KONTROL UTAMA BERDASARKAN STATUS DATABASE -->
+          <div class="pt-2">
+            {settings.status_pendaftaran === 'BUKA' ? (
+              <a 
+                href="/formulir" 
+                class="inline-block w-full sm:w-auto bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-black text-base sm:text-lg px-8 py-4 rounded-2xl shadow-xl shadow-amber-400/20 transition-all border-2 border-amber-300"
+              >
+                Daftar Sekarang....!! 📝
+              </a>
+            ) : (
+              <button 
+                type="button" 
+                id="btnPendaftaranTutup" 
+                class="inline-block w-full sm:w-auto bg-slate-400 text-white font-extrabold text-base sm:text-lg px-8 py-4 rounded-2xl shadow cursor-not-allowed border-2 border-slate-500"
+              >
+                🔒 Pendaftaran Ditutup
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <!-- CONTAINER CONTENT -->
+      <div class="max-w-5xl mx-auto px-4 -mt-10 relative z-30 space-y-8 pb-12">
+        
+        <!-- SECTION 1: WIDGET CEK STATUS -->
+        <section class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xl space-y-4">
+          <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-xl shrink-0">
+              🔍
+            </div>
+            <div>
+              <h2 class="font-extrabold text-slate-900 text-sm sm:text-base">Cek Status Pendaftaran</h2>
+              <p class="text-xs text-slate-500">Masukkan NIK Anak atau Nomor WhatsApp untuk melihat status pendaftaran.</p>
+            </div>
+          </div>
+
+          <form id="formCek" class="flex flex-col sm:flex-row gap-2">
+            <input 
+              type="text" 
+              id="inputKeyword" 
+              placeholder="Masukkan NIK Anak / No. WA..." 
+              required 
+              class="w-full text-xs p-3.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+            />
+            <button 
+              type="submit" 
+              class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-6 py-3.5 rounded-xl shadow-md transition active:scale-95 shrink-0"
+            >
+              Cek Status
+            </button>
+          </form>
+
+          <div id="hasilCek" class="hidden p-4 rounded-2xl text-xs font-medium bg-slate-50 border border-slate-200"></div>
+        </section>
+
+        <!-- SECTION 2: ALUR & JADWAL DINAMIS DARI DATABASE -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- ALUR PENDAFTARAN -->
+          <section class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+            <div class="border-b border-slate-100 pb-3 flex items-center gap-2">
+              <span class="text-lg">📌</span>
+              <div>
+                <h3 class="font-extrabold text-slate-900 text-base">Alur Pendaftaran</h3>
+                <p class="text-xs text-slate-500">Langkah-langkah mendaftar di madrasah</p>
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              {alurList.length > 0 ? (
+                alurList.map((item: string, idx: number) => (
+                  <div class="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <span class="w-7 h-7 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shrink-0">{idx + 1}</span>
+                    <div class="text-xs font-bold text-slate-800 pt-1">
+                      {item.replace(/^\d+\.\s*/, '')}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p class="text-xs text-slate-400 p-2">Belum ada alur pendaftaran yang diatur.</p>
+              )}
+            </div>
+          </section>
+
+          <!-- JADWAL PENTING -->
+          <section class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+            <div class="border-b border-slate-100 pb-3 flex items-center gap-2">
+              <span class="text-lg">📅</span>
+              <div>
+                <h3 class="font-extrabold text-slate-900 text-base">Jadwal PMBM TA {tahunAjaran}</h3>
+                <p class="text-xs text-slate-500">Catat tanggal-tanggal pentingnya</p>
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              {jadwalList.length > 0 ? (
+                jadwalList.map((item: string) => {
+                  const parts = item.split(':');
+                  const title = parts[0] || item;
+                  const desc = parts.slice(1).join(':') || '';
+                  return (
+                    <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-100 space-y-0.5">
+                      <span class="text-xs font-bold text-emerald-900">{title}</span>
+                      {desc && <p class="text-xs font-bold text-emerald-700">{desc.trim()}</p>}
+                    </div>
+                  );
+                })
+              ) : (
+                <p class="text-xs text-slate-400 p-2">Belum ada jadwal penting yang diatur.</p>
+              )}
+            </div>
+          </section>
+
+        </div>
+
+      </div>
+    </main>
+
+    <!-- FLOATING LIVE CHAT -->
+    <div class="fixed bottom-5 right-5 z-50">
+      <div id="chatBox" class="hidden w-80 sm:w-88 bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden mb-3">
+        <div class="bg-emerald-800 text-white p-4 flex justify-between items-center">
+          <div class="flex items-center gap-2.5">
+            <div class="relative">
+              <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs">CS</div>
+              <span class="w-2.5 h-2.5 bg-green-400 border-2 border-emerald-800 rounded-full absolute bottom-0 right-0"></span>
+            </div>
+            <div>
+              <h4 class="font-bold text-xs">Live Chat Admin PMBM</h4>
+              <p class="text-[10px] text-emerald-200">Online — Siap Membantu</p>
+            </div>
+          </div>
+          <button id="btnCloseChat" class="text-emerald-200 hover:text-white font-bold text-sm">✕</button>
+        </div>
+
+        <div id="chatAuthStep" class="p-5 space-y-3 text-xs bg-slate-50">
+          <p class="font-bold text-slate-700">Silahkan lengkapi nama & WhatsApp Anda untuk memulai obrolan:</p>
+          <input type="text" id="chatName" placeholder="Nama Lengkap Anda *" required class="w-full p-3 bg-white rounded-xl border border-slate-200 text-xs font-medium">
+          <input type="tel" id="chatWa" placeholder="Nomor WhatsApp (08xx) *" required class="w-full p-3 bg-white rounded-xl border border-slate-200 text-xs font-medium">
+          <button id="btnStartChat" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-xl text-xs transition shadow-md">
+            Mulai Obrolan 🚀
+          </button>
+        </div>
+
+        <div id="chatRoomStep" class="hidden flex-col">
+          <div id="chatMessages" class="p-4 h-64 overflow-y-auto space-y-3 bg-slate-50 text-xs"></div>
+          <form id="formChat" class="p-3 bg-white border-t border-slate-100 flex gap-2">
+            <input type="text" id="inputChat" placeholder="Ketik pesan..." required class="w-full text-xs p-2.5 bg-slate-50 rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"/>
+            <button type="submit" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-2 rounded-xl text-xs shrink-0 transition">
+              Kirim
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <button 
+        id="btnToggleChat" 
+        class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white p-4 rounded-full shadow-2xl flex items-center gap-2 font-bold text-xs border-2 border-white transition-all ml-auto"
+      >
+        <span class="text-xl">💬</span>
+        <span class="hidden sm:inline">Tanya Admin</span>
+      </button>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 text-slate-400 py-6 text-center text-xs border-t border-slate-800">
+      <p class="font-bold text-white mb-1">{namaSekolah}</p>
+      <p class="text-[11px] text-slate-500">© 2026 {namaSekolah} {alamatLengkap}. All Rights Reserved.</p>
+    </footer>
+
+    <!-- SCRIPT CLIENT INTERAKTIF -->
+    <script define:vars={{ pesanTutup: settings.pesan_tutup }}>
+      const btnTutup = document.getElementById('btnPendaftaranTutup');
+      if (btnTutup) {
+        btnTutup.addEventListener('click', () => {
+          alert(`⚠️ PEMBERITAHUAN:\n\n${pesanTutup}`);
+        });
+      }
+
+      const formCek = document.getElementById('formCek');
+      const hasilCek = document.getElementById('hasilCek');
+
+      if (formCek && hasilCek) {
+        formCek.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const keyword = document.getElementById('inputKeyword').value.trim();
+          hasilCek.classList.remove('hidden');
+          hasilCek.innerHTML = `<p class="text-slate-500">Memeriksa database...</p>`;
+
+          try {
+            const res = await fetch(`/api/cek-status?keyword=${encodeURIComponent(keyword)}`);
+            const data = await res.json();
+
+            if (data.success && data.found) {
+              const item = data.pendaftar;
+              hasilCek.innerHTML = `
+                <div class="space-y-1 text-xs">
+                  <p class="font-bold text-emerald-800">✅ Data Ditemukan!</p>
+                  <p><strong>Nama:</strong> ${item.nama_siswa} (${item.no_pendaftaran})</p>
+                  <p><strong>Status Validasi Berkas:</strong> <span class="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px]">${item.status_pendaftaran || 'Pending'}</span></p>
+                  <p><strong>Status Kelulusan:</strong> <span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">${item.status_kelulusan || 'Diproses'}</span></p>
+                </div>
+              `;
+            } else {
+              hasilCek.innerHTML = `<p class="font-bold text-rose-700">❌ Data tidak ditemukan. Periksa NIK / WhatsApp Anda kembali.</p>`;
+            }
+          } catch (err) {
+            hasilCek.innerHTML = `<p class="font-bold text-rose-700">❌ Terjadi kesalahan koneksi server.</p>`;
+          }
+        });
+      }
+
+      const btnToggleChat = document.getElementById('btnToggleChat');
+      const btnCloseChat = document.getElementById('btnCloseChat');
+      const chatBox = document.getElementById('chatBox');
+      const chatAuthStep = document.getElementById('chatAuthStep');
+      const chatRoomStep = document.getElementById('chatRoomStep');
+      const btnStartChat = document.getElementById('btnStartChat');
+      const formChat = document.getElementById('formChat');
+
+      btnToggleChat?.addEventListener('click', () => {
+        chatBox?.classList.toggle('hidden');
+        checkUserSession();
+      });
+
+      btnCloseChat?.addEventListener('click', () => chatBox?.classList.add('hidden'));
+
+      function checkUserSession() {
+        const name = localStorage.getItem('chat_user_name');
+        const wa = localStorage.getItem('chat_user_wa');
+        if (name && wa) {
+          chatAuthStep?.classList.add('hidden');
+          chatRoomStep?.classList.remove('hidden');
+          chatRoomStep?.classList.add('flex');
+          loadUserMessages(wa);
+        }
+      }
+
+      btnStartChat?.addEventListener('click', () => {
+        const nameInput = document.getElementById('chatName');
+        const waInput = document.getElementById('chatWa');
+
+        if (!nameInput.value.trim() || !waInput.value.trim()) {
+          return alert('Silahkan lengkapi Nama & Nomor WhatsApp Anda!');
+        }
+
+        localStorage.setItem('chat_user_name', nameInput.value.trim());
+        localStorage.setItem('chat_user_wa', waInput.value.trim());
+        checkUserSession();
+      });
+
+      async function loadUserMessages(wa) {
+        try {
+          const res = await fetch(`/api/chat?wa=${encodeURIComponent(wa)}`);
+          const data = await res.json();
+          const msgBox = document.getElementById('chatMessages');
+          if (!msgBox || !data.success) return;
+
+          msgBox.innerHTML = (data.chats || []).map(c => `
+            <div class="p-3 rounded-2xl max-w-[85%] ${c.sender_type === 'user' ? 'bg-emerald-700 text-white ml-auto' : 'bg-emerald-100 text-emerald-900'}">
+              <p class="font-bold text-[10px] ${c.sender_type === 'user' ? 'text-emerald-200' : 'text-emerald-800'}">${c.sender_name}</p>
+              <p class="mt-0.5">${c.message}</p>
+            </div>
+          `).join('');
+
+          msgBox.scrollTop = msgBox.scrollHeight;
+        } catch (err) {}
+      }
+
+      formChat?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('inputChat');
+        const name = localStorage.getItem('chat_user_name');
+        const wa = localStorage.getItem('chat_user_wa');
+
+        if (!input.value.trim() || !name || !wa) return;
+        const msgText = input.value.trim();
+        input.value = '';
+
+        try {
+          await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sender_name: name,
+              sender_wa: wa,
+              message: msgText,
+              sender_type: 'user'
+            })
+          });
+          loadUserMessages(wa);
+        } catch (err) {}
+      });
+
+      setInterval(() => {
+        const wa = localStorage.getItem('chat_user_wa');
+        if (wa && !chatBox?.classList.contains('hidden')) {
+          loadUserMessages(wa);
+        }
+      }, 3000);
+    </script>
+  </body>
+</html>

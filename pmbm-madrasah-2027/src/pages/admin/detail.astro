@@ -1,0 +1,1172 @@
+---
+import '../../styles/global.css';
+import mysql from 'mysql2/promise';
+
+const namaSekolah = "MI Hidayatul Husna Krasak";
+const alamatSekolah = "Krasak, Pecangaan, Jepara";
+const tahunAjaran = "2027/2028";
+
+// ✅ Ambil & validasi id
+const url = new URL(Astro.request.url);
+const idParam = url.searchParams.get('id');
+const id = idParam && /^\d+$/.test(idParam) ? Number(idParam) : null;
+
+// ✅ Interface lengkap
+interface Pendaftar {
+  id: number;
+  no_pendaftaran: string;
+  status_pendaftaran: string;
+  biaya_pendaftaran?: number;
+  biaya_seragam?: number;
+
+  nama_siswa: string;
+  nik_siswa?: string;
+  nisn?: string;
+  jenis_kelamin?: string;
+  asal_sekolah?: string;
+  tempat_lahir?: string;
+  tanggal_lahir?: string;
+  anak_ke?: number;
+  jumlah_saudara?: number;
+  no_kk?: string;
+  tinggi_badan?: number;
+  berat_badan?: number;
+
+  alamat_rt?: string;
+  alamat_rw?: string;
+  alamat_desa?: string;
+  alamat_kecamatan?: string;
+
+  nama_ayah?: string;
+  nik_ayah?: string;
+  hp_ayah?: string;
+  pekerjaan_ayah?: string;
+  penghasilan_ayah?: string;
+  nama_ibu?: string;
+  nik_ibu?: string;
+  hp_ibu?: string;
+  pekerjaan_ibu?: string;
+  penghasilan_ibu?: string;
+
+  bantuan_sosial?: string;
+  ukuran_atasan?: string;
+  ukuran_bawahan?: string;
+
+  foto_siswa?: string;
+  foto_akta?: string;
+  foto_kk?: string;
+  foto_rumah?: string;
+  foto_pkh?: string;
+  foto_pip?: string;
+  foto_kip?: string;
+  foto_bpnt?: string;
+
+  created_at?: string;
+  [key: string]: unknown;
+}
+
+let data: Pendaftar | null = null;
+let dbError = false;
+
+if (id) {
+  // ✅ Pakai `any` untuk bypass masalah tipe mysql2
+  let connection: any = null;
+
+  try {
+    connection = await mysql.createConnection({
+      host: import.meta.env.DB_HOST ?? 'localhost',
+      user: import.meta.env.DB_USER ?? 'root',
+      password: import.meta.env.DB_PASSWORD ?? '',
+      database: import.meta.env.DB_NAME ?? 'pmbm_madrasah',
+    });
+
+    const [rows]: any = await connection.execute(
+      'SELECT * FROM pendaftar WHERE id = ?',
+      [id]
+    );
+
+    if (rows && rows.length > 0) {
+      data = rows[0] as Pendaftar;
+    }
+  } catch (err) {
+    console.error('DB Error:', err);
+    dbError = true;
+  } finally {
+    if (connection) await connection.end();
+  }
+}
+
+const tanggalCetak = new Date().toLocaleDateString('id-ID', {
+  day: 'numeric', month: 'long', year: 'numeric',
+});
+
+const fmtTanggal = (t?: string) =>
+  t ? new Date(t).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
+---
+
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <title>Edit & Detail Pendaftar - {data ? data.nama_siswa : 'Admin'}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+      body { font-family: 'Plus Jakarta Sans', sans-serif; }
+      #modalCetakResi.hidden { display: none; }
+
+      /* ============================================================
+         CSS CETAK — 2 LEMBAR A4, TINGGI DIKUNCI, ANTI HALAMAN HANTU
+         ============================================================ */
+      @media print {
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #fff !important;
+          width: 210mm !important;
+          height: auto !important;
+        }
+        body * { visibility: hidden; }
+
+        #modalCetakResi,
+        #modalCetakResi * { visibility: visible; }
+
+        #modalCetakResi {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 210mm !important;
+          height: auto !important;
+          min-height: auto !important;
+          max-height: none !important;
+          background: #fff !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          display: block !important;
+          z-index: 99999 !important;
+          overflow: visible !important;
+          backdrop-filter: none !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
+
+        .print-container {
+          display: block !important;
+          width: 210mm !important;
+          max-width: 210mm !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          gap: 0 !important;
+          background: #fff !important;
+        }
+
+        /* KERTAS — tinggi fix 287mm, overflow dipotong */
+        .page-sheet {
+          width: 210mm !important;
+          height: 287mm !important;
+          max-height: 287mm !important;
+          min-height: 287mm !important;
+          padding: 8mm 12mm !important;
+          margin: 0 !important;
+          background: #fff !important;
+          border: none !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+          page-break-after: always !important;
+          break-after: page !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+          font-size: 10pt !important;
+          line-height: 1.3 !important;
+          color: #000 !important;
+          position: relative !important;
+          display: block !important;
+        }
+
+        /* Lembar terakhir: matikan page-break-after */
+        .page-sheet:last-of-type {
+          page-break-after: auto !important;
+          break-after: auto !important;
+        }
+
+        .no-print,
+        .toolbar,
+        #btnOpenCetak,
+        #btnCetakBawah,
+        header, nav, footer {
+          display: none !important;
+          visibility: hidden !important;
+        }
+
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        @page {
+          size: A4 portrait;
+          margin: 0;
+        }
+
+        .print-container > *:first-child { margin-top: 0 !important; }
+        .print-container > *:last-child { margin-bottom: 0 !important; }
+        .page-sheet > *:first-child { margin-top: 0 !important; }
+        .page-sheet > *:last-child { margin-bottom: 0 !important; }
+
+        .form-table { width: 100% !important; border-collapse: collapse !important; }
+        .form-table td { padding: 1.5px 4px !important; font-size: 10pt !important; vertical-align: top; }
+        .form-table td.label { width: 32% !important; }
+        .form-table td.sep { width: 8px !important; }
+
+        .kop-surat {
+          border-bottom: 2px solid #000 !important;
+          padding-bottom: 4px !important;
+          margin-bottom: 6px !important;
+        }
+
+        .judul-form { text-align: center; margin: 6px 0 8px !important; }
+        .judul-form h2 { font-size: 11pt !important; margin: 0 !important; text-decoration: underline; letter-spacing: 1px; }
+        .judul-form p { font-size: 9pt !important; margin: 2px 0 0 !important; }
+
+        .section-title {
+          font-size: 10pt !important;
+          font-weight: 800 !important;
+          background: #e5e7eb !important;
+          padding: 2px 6px !important;
+          margin: 6px 0 3px !important;
+          border: 1px solid #000 !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        .ttd {
+          display: flex !important;
+          justify-content: space-between !important;
+          margin-top: 12px !important;
+          padding: 0 10px !important;
+        }
+        .ttd > div { width: 45% !important; text-align: center !important; font-size: 10pt !important; }
+        .ttd .ruang-ttd { height: 45px !important; }
+
+        .catatan-print {
+          margin-top: 8px !important;
+          padding: 4px 8px !important;
+          border: 1px dashed #333 !important;
+          font-size: 8.5pt !important;
+          line-height: 1.3 !important;
+        }
+
+        .status-berkas-print {
+          margin-top: 6px !important;
+          border: 1px solid #000 !important;
+          padding: 3px !important;
+        }
+        .status-berkas-print table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+          text-align: center;
+        }
+        .status-berkas-print table td {
+          border: 1px solid #666 !important;
+          padding: 2px !important;
+          font-size: 8.5pt !important;
+        }
+
+        .foto-box {
+          width: 25mm !important;
+          height: 32mm !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-slate-100 text-slate-800 antialiased min-h-screen pb-16">
+
+    <!-- Header Navigation -->
+    <header class="bg-emerald-900 text-white sticky top-0 z-30 shadow-md no-print">
+      <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        <a href="/admin" class="bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl border border-emerald-700 transition">
+          ← Dashboard Admin
+        </a>
+        <span class="font-extrabold text-xs sm:text-sm tracking-tight">{namaSekolah}</span>
+      </div>
+    </header>
+
+    <!-- Content Utama -->
+    <main class="max-w-4xl mx-auto px-3 sm:px-4 py-6">
+      {dbError ? (
+        <div class="bg-white p-8 rounded-3xl text-center shadow border">
+          <p class="font-bold text-rose-700 text-sm">⚠️ Gagal mengakses database.</p>
+        </div>
+      ) : !id ? (
+        <div class="bg-white p-8 rounded-3xl text-center space-y-4 shadow border">
+          <p class="font-bold text-rose-700 text-sm">⚠️ Parameter ID tidak valid.</p>
+          <a href="/admin" class="inline-block bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl">Kembali</a>
+        </div>
+      ) : !data ? (
+        <div class="bg-white p-8 rounded-3xl text-center space-y-4 shadow border">
+          <p class="font-bold text-rose-700 text-sm">❌ Data Pendaftar Tidak Ditemukan.</p>
+          <a href="/admin" class="inline-block bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl">Kembali</a>
+        </div>
+      ) : (
+        <div class="bg-white p-4 sm:p-10 rounded-3xl border border-slate-200 shadow-xl space-y-8">
+
+          <!-- Header Judul -->
+          <div class="border-b border-slate-100 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 uppercase tracking-wider">
+                NO. REG: {data.no_pendaftaran}
+              </span>
+              <h1 class="text-xl sm:text-2xl font-black text-slate-900 mt-2">Koreksi Data & Berkas Pendaftar</h1>
+              <p class="text-xs text-slate-500">Pendaftaran Tanggal: {new Date(data.created_at ?? '').toLocaleDateString('id-ID')}</p>
+            </div>
+            <button type="button" id="btnOpenCetak" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition no-print">
+              🖨️ Cetak Formulir Penuh (2 Lembar A4)
+            </button>
+          </div>
+
+          <!-- FORM EDIT LENGKAP -->
+          <form id="formAdminDetail" class="space-y-8">
+            <input type="hidden" name="id" value={data.id}>
+
+            <!-- PANEL KONTROL KEUANGAN & VALIDASI -->
+            <div class="bg-emerald-50 border-2 border-emerald-200 p-4 sm:p-5 rounded-2xl space-y-4">
+              <div class="border-b border-emerald-200 pb-2 flex items-center justify-between">
+                <h2 class="font-extrabold text-emerald-950 text-xs sm:text-sm flex items-center gap-2">
+                  <span>⚙️</span> PANEL KONTROL VALIDASI & KEUANGAN (ADMIN)
+                </h2>
+                <span class="text-[10px] bg-emerald-200 text-emerald-900 font-bold px-2.5 py-0.5 rounded-full">Panitia</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Status Validasi Fisik</label>
+                  <select name="status_pendaftaran" class="w-full p-3 bg-white rounded-xl border border-slate-300 font-bold text-slate-800">
+                    <option value="Pending" selected={data.status_pendaftaran === 'Pending'}>Pending</option>
+                    <option value="Sudah Validasi" selected={data.status_pendaftaran === 'Sudah Validasi'}>Sudah Validasi</option>
+                    <option value="Batal" selected={data.status_pendaftaran === 'Batal'}>Batal Mendaftar</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Biaya Pendaftaran (Rp)</label>
+                  <input type="number" name="biaya_pendaftaran" value={data.biaya_pendaftaran || 0} class="w-full p-3 bg-white rounded-xl border border-slate-300 font-bold text-emerald-800">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Titipan Uang Seragam (Rp)</label>
+                  <input type="number" name="biaya_seragam" value={data.biaya_seragam || 0} class="w-full p-3 bg-white rounded-xl border border-slate-300 font-bold text-teal-800">
+                </div>
+              </div>
+            </div>
+
+            <!-- BAGIAN 0: FOTO & BERKAS -->
+            <div class="space-y-4">
+              <h2 class="text-sm font-extrabold text-slate-900 bg-slate-100 p-3 rounded-xl border flex items-center gap-2">
+                <span>📸</span> 0. Berkas Foto & Dokumen Utama
+              </h2>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+                <div class="bg-slate-50 p-4 rounded-2xl border text-center space-y-2">
+                  <p class="font-bold text-slate-700">1. Pasfoto Siswa</p>
+                  <div class="w-full h-32 mx-auto bg-white border rounded-xl overflow-hidden flex items-center justify-center shadow-sm relative">
+                    <img id="img_preview_pasfoto" src={data.foto_siswa || ''} alt="Pasfoto" class={`w-full h-full object-cover ${!data.foto_siswa ? 'hidden' : ''}`} />
+                    <span id="text_placeholder_pasfoto" class={`absolute text-[10px] text-slate-400 font-bold ${data.foto_siswa ? 'hidden' : ''}`}>Tidak Ada Foto</span>
+                  </div>
+                  <input type="file" id="file_pasfoto" accept="image/*" class="w-full text-[10px] file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+                  <input type="hidden" name="foto_siswa" id="hidden_pasfoto" value={data.foto_siswa || ''}>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border text-center space-y-2">
+                  <p class="font-bold text-slate-700">2. Akta Kelahiran</p>
+                  <div class="w-full h-32 mx-auto bg-white border rounded-xl overflow-hidden flex items-center justify-center shadow-sm relative">
+                    <img id="img_preview_akta" src={data.foto_akta || ''} alt="Akta" class={`w-full h-full object-cover ${!data.foto_akta ? 'hidden' : ''}`} />
+                    <span id="text_placeholder_akta" class={`absolute text-[10px] text-slate-400 font-bold ${data.foto_akta ? 'hidden' : ''}`}>Tidak Ada Akta</span>
+                  </div>
+                  <input type="file" id="file_akta" accept="image/*" class="w-full text-[10px] file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+                  <input type="hidden" name="foto_akta" id="hidden_akta" value={data.foto_akta || ''}>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border text-center space-y-2">
+                  <p class="font-bold text-slate-700">3. Kartu Keluarga</p>
+                  <div class="w-full h-32 mx-auto bg-white border rounded-xl overflow-hidden flex items-center justify-center shadow-sm relative">
+                    <img id="img_preview_kk" src={data.foto_kk || ''} alt="KK" class={`w-full h-full object-cover ${!data.foto_kk ? 'hidden' : ''}`} />
+                    <span id="text_placeholder_kk" class={`absolute text-[10px] text-slate-400 font-bold ${data.foto_kk ? 'hidden' : ''}`}>Tidak Ada KK</span>
+                  </div>
+                  <input type="file" id="file_kk" accept="image/*" class="w-full text-[10px] file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+                  <input type="hidden" name="foto_kk" id="hidden_kk" value={data.foto_kk || ''}>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border text-center space-y-2">
+                  <p class="font-bold text-slate-700">4. Foto Depan Rumah</p>
+                  <div class="w-full h-32 mx-auto bg-white border rounded-xl overflow-hidden flex items-center justify-center shadow-sm relative">
+                    <img id="img_preview_rumah" src={data.foto_rumah || ''} alt="Rumah" class={`w-full h-full object-cover ${!data.foto_rumah ? 'hidden' : ''}`} />
+                    <span id="text_placeholder_rumah" class={`absolute text-[10px] text-slate-400 font-bold ${data.foto_rumah ? 'hidden' : ''}`}>Tidak Ada Rumah</span>
+                  </div>
+                  <input type="file" id="file_rumah" accept="image/*" class="w-full text-[10px] file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+                  <input type="hidden" name="foto_rumah" id="hidden_rumah" value={data.foto_rumah || ''}>
+                </div>
+              </div>
+            </div>
+
+            <!-- BAGIAN 1: DATA SISWA -->
+            <div class="space-y-4">
+              <h2 class="text-sm font-extrabold text-slate-900 bg-slate-100 p-3 rounded-xl border flex items-center gap-2">
+                <span>👤</span> 1. Data Calon Murid
+              </h2>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div class="sm:col-span-2">
+                  <label class="block font-bold text-slate-700 mb-1">Nama Lengkap Siswa</label>
+                  <input type="text" name="nama_siswa" value={data.nama_siswa} required class="w-full p-3 bg-white rounded-xl border font-bold text-slate-900">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">NIK Siswa (16 Digit)</label>
+                  <input type="text" name="nik_siswa" value={data.nik_siswa ?? ''} class="w-full p-3 bg-white rounded-xl border">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">NISN</label>
+                  <input type="text" name="nisn" value={data.nisn || ''} class="w-full p-3 bg-white rounded-xl border">
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="block font-bold text-slate-700 mb-1">Asal TK / RA / PAUD</label>
+                  <input type="text" name="asal_sekolah" value={data.asal_sekolah || ''} class="w-full p-3 bg-white rounded-xl border">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Tempat Lahir</label>
+                  <input type="text" name="tempat_lahir" value={data.tempat_lahir ?? ''} class="w-full p-3 bg-white rounded-xl border">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Tanggal Lahir</label>
+                  <input type="date" name="tanggal_lahir" value={data.tanggal_lahir ?? ''} class="w-full p-3 bg-white rounded-xl border">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Anak Ke- / Jumlah Saudara</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input type="number" name="anak_ke" value={data.anak_ke ?? ''} placeholder="Anak ke" class="p-3 bg-white rounded-xl border">
+                    <input type="number" name="jumlah_saudara" value={data.jumlah_saudara ?? ''} placeholder="Jml saudara" class="p-3 bg-white rounded-xl border">
+                  </div>
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">No. Kartu Keluarga (KK)</label>
+                  <input type="text" name="no_kk" value={data.no_kk ?? ''} class="w-full p-3 bg-white rounded-xl border font-semibold">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Tinggi Badan (cm)</label>
+                  <input type="number" name="tinggi_badan" value={data.tinggi_badan || 0} class="w-full p-3 bg-white rounded-xl border">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Berat Badan (kg)</label>
+                  <input type="number" name="berat_badan" value={data.berat_badan || 0} class="w-full p-3 bg-white rounded-xl border">
+                </div>
+              </div>
+
+              <div class="pt-2 space-y-2 text-xs">
+                <label class="block font-bold text-slate-800">Alamat Tempat Tinggal Siswa</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <input type="text" name="alamat_rt" value={data.alamat_rt || ''} placeholder="RT" class="p-3 bg-white rounded-xl border">
+                  <input type="text" name="alamat_rw" value={data.alamat_rw || ''} placeholder="RW" class="p-3 bg-white rounded-xl border">
+                  <input type="text" name="alamat_desa" value={data.alamat_desa ?? ''} placeholder="Desa" class="p-3 bg-white rounded-xl border font-bold">
+                  <input type="text" name="alamat_kecamatan" value={data.alamat_kecamatan ?? ''} placeholder="Kecamatan" class="p-3 bg-white rounded-xl border font-bold">
+                </div>
+              </div>
+            </div>
+
+            <!-- BAGIAN 2: DATA ORANG TUA -->
+            <div class="space-y-4 pt-4 border-t">
+              <h2 class="text-sm font-extrabold text-slate-900 bg-slate-100 p-3 rounded-xl border flex items-center gap-2">
+                <span>👨‍👩‍👧</span> 2. Data Orang Tua / Wali
+              </h2>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Nama Ayah Kandung</label>
+                  <input type="text" name="nama_ayah" value={data.nama_ayah ?? ''} class="w-full p-3 bg-white rounded-xl border font-bold">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">NIK Ayah / No. HP (WhatsApp)</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input type="text" name="nik_ayah" value={data.nik_ayah ?? ''} placeholder="NIK Ayah" class="p-3 bg-white rounded-xl border">
+                    <input type="text" name="hp_ayah" value={data.hp_ayah ?? ''} placeholder="No HP" class="p-3 bg-white rounded-xl border">
+                  </div>
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Pekerjaan & Penghasilan Ayah</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input type="text" name="pekerjaan_ayah" value={data.pekerjaan_ayah || ''} placeholder="Pekerjaan" class="p-3 bg-white rounded-xl border">
+                    <input type="text" name="penghasilan_ayah" value={data.penghasilan_ayah || ''} placeholder="Penghasilan" class="p-3 bg-white rounded-xl border">
+                  </div>
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Nama Ibu Kandung</label>
+                  <input type="text" name="nama_ibu" value={data.nama_ibu ?? ''} class="w-full p-3 bg-white rounded-xl border font-bold">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">NIK Ibu / No. HP Ibu</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input type="text" name="nik_ibu" value={data.nik_ibu ?? ''} placeholder="NIK Ibu" class="p-3 bg-white rounded-xl border">
+                    <input type="text" name="hp_ibu" value={data.hp_ibu || ''} placeholder="No HP" class="p-3 bg-white rounded-xl border">
+                  </div>
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Pekerjaan & Penghasilan Ibu</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input type="text" name="pekerjaan_ibu" value={data.pekerjaan_ibu || ''} placeholder="Pekerjaan" class="p-3 bg-white rounded-xl border">
+                    <input type="text" name="penghasilan_ibu" value={data.penghasilan_ibu || ''} placeholder="Penghasilan" class="p-3 bg-white rounded-xl border">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- BAGIAN 3: BANTUAN SOSIAL & SERAGAM -->
+            <div class="space-y-4 pt-4 border-t">
+              <h2 class="text-sm font-extrabold text-slate-900 bg-slate-100 p-3 rounded-xl border flex items-center gap-2">
+                <span>💳</span> 3. Program Bantuan Sosial & Ukuran Seragam
+              </h2>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+                <div class="bg-slate-50 p-4 rounded-2xl border space-y-3">
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Program Bantuan Sosial</label>
+                    <select name="bantuan_sosial" id="selectBantuanSosial" class="w-full p-3 bg-white rounded-xl border font-bold text-amber-900">
+                      <option value="-" selected={!data.bantuan_sosial || data.bantuan_sosial === '-'}>- Tidak Ada / Belum Punya -</option>
+                      <option value="PKH (Program Keluarga Harapan)" selected={data.bantuan_sosial?.includes('PKH')}>PKH (Program Keluarga Harapan)</option>
+                      <option value="PIP (Program Indonesia Pintar)" selected={data.bantuan_sosial?.includes('PIP')}>PIP (Program Indonesia Pintar)</option>
+                      <option value="KIP (Kartu Indonesia Pintar)" selected={data.bantuan_sosial?.includes('KIP')}>KIP (Kartu Indonesia Pintar)</option>
+                      <option value="BPNT (Bantuan Pangan Non Tunai)" selected={data.bantuan_sosial?.includes('BPNT')}>BPNT (Bantuan Pangan Non Tunai)</option>
+                    </select>
+                  </div>
+
+                  <div class="bantuan-card space-y-2 pt-2 border-t border-slate-200" id="card_pkh" style="display: none;">
+                    <p class="font-bold text-amber-800 text-[11px]">📁 Foto Kartu PKH</p>
+                    <div class="w-full h-32 bg-white border rounded-xl overflow-hidden flex items-center justify-center shadow-sm relative">
+                      <img id="img_preview_pkh" src={data.foto_pkh || ''} alt="PKH" class={`w-full h-full object-cover ${!data.foto_pkh ? 'hidden' : ''}`} />
+                      <span id="text_placeholder_pkh" class={`absolute text-[10px] text-slate-400 font-bold ${data.foto_pkh ? 'hidden' : ''}`}>Belum Ada Foto PKH</span>
+                    </div>
+                    <input type="file" id="file_pkh" accept="image/*" class="w-full text-[10px] file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer">
+                    <input type="hidden" name="foto_pkh" id="hidden_pkh" value={data.foto_pkh || ''}>
+                  </div>
+
+                  <div class="bantuan-card space-y-2 pt-2 border-t border-slate-200" id="card_pip" style="display: none;">
+                    <p class="font-bold text-amber-800 text-[11px]">📁 Foto Kartu PIP</p>
+                    <div class="w-full h-32 bg-white border rounded-xl overflow-hidden flex items-center justify-center shadow-sm relative">
+                      <img id="img_preview_pip" src={data.foto_pip || ''} alt="PIP" class={`w-full h-full object-cover ${!data.foto_pip ? 'hidden' : ''}`} />
+                      <span id="text_placeholder_pip" class={`absolute text-[10px] text-slate-400 font-bold ${data.foto_pip ? 'hidden' : ''}`}>Belum Ada Foto PIP</span>
+                    </div>
+                    <input type="file" id="file_pip" accept="image/*" class="w-full text-[10px] file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer">
+                    <input type="hidden" name="foto_pip" id="hidden_pip" value={data.foto_pip || ''}>
+                  </div>
+
+                  <div class="bantuan-card space-y-2 pt-2 border-t border-slate-200" id="card_kip" style="display: none;">
+                    <p class="font-bold text-amber-800 text-[11px]">📁 Foto Kartu KIP</p>
+                    <div class="w-full h-32 bg-white border rounded-xl overflow-hidden flex items-center justify-center shadow-sm relative">
+                      <img id="img_preview_kip" src={data.foto_kip || ''} alt="KIP" class={`w-full h-full object-cover ${!data.foto_kip ? 'hidden' : ''}`} />
+                      <span id="text_placeholder_kip" class={`absolute text-[10px] text-slate-400 font-bold ${data.foto_kip ? 'hidden' : ''}`}>Belum Ada Foto KIP</span>
+                    </div>
+                    <input type="file" id="file_kip" accept="image/*" class="w-full text-[10px] file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer">
+                    <input type="hidden" name="foto_kip" id="hidden_kip" value={data.foto_kip || ''}>
+                  </div>
+
+                  <div class="bantuan-card space-y-2 pt-2 border-t border-slate-200" id="card_bpnt" style="display: none;">
+                    <p class="font-bold text-amber-800 text-[11px]">📁 Foto Kartu BPNT</p>
+                    <div class="w-full h-32 bg-white border rounded-xl overflow-hidden flex items-center justify-center shadow-sm relative">
+                      <img id="img_preview_bpnt" src={data.foto_bpnt || ''} alt="BPNT" class={`w-full h-full object-cover ${!data.foto_bpnt ? 'hidden' : ''}`} />
+                      <span id="text_placeholder_bpnt" class={`absolute text-[10px] text-slate-400 font-bold ${data.foto_bpnt ? 'hidden' : ''}`}>Belum Ada Foto BPNT</span>
+                    </div>
+                    <input type="file" id="file_bpnt" accept="image/*" class="w-full text-[10px] file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer">
+                    <input type="hidden" name="foto_bpnt" id="hidden_bpnt" value={data.foto_bpnt || ''}>
+                  </div>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl border space-y-4">
+                  <p class="font-bold text-slate-700">Ukuran Seragam Siswa</p>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Ukuran Atasan (Baju)</label>
+                    <select name="ukuran_atasan" class="w-full p-3 bg-white rounded-xl border font-bold text-emerald-900">
+                      <option value="">-- Pilih Ukuran Atasan --</option>
+                      <option value="S" selected={data.ukuran_atasan === 'S'}>S (Kecil)</option>
+                      <option value="M" selected={data.ukuran_atasan === 'M'}>M (Standar)</option>
+                      <option value="L" selected={data.ukuran_atasan === 'L'}>L (Besar)</option>
+                      <option value="XL" selected={data.ukuran_atasan === 'XL'}>XL (Extra Large)</option>
+                      <option value="XXL" selected={data.ukuran_atasan === 'XXL'}>XXL (Jumbo)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Ukuran Bawahan (Celana / Rok)</label>
+                    <select name="ukuran_bawahan" class="w-full p-3 bg-white rounded-xl border font-bold text-teal-900">
+                      <option value="">-- Pilih Ukuran Bawahan --</option>
+                      <option value="S" selected={data.ukuran_bawahan === 'S'}>S (Kecil)</option>
+                      <option value="M" selected={data.ukuran_bawahan === 'M'}>M (Standar)</option>
+                      <option value="L" selected={data.ukuran_bawahan === 'L'}>L (Besar)</option>
+                      <option value="XL" selected={data.ukuran_bawahan === 'XL'}>XL (Extra Large)</option>
+                      <option value="XXL" selected={data.ukuran_bawahan === 'XXL'}>XXL (Jumbo)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TOMBOL AKSI -->
+            <div class="pt-6 flex flex-col sm:flex-row gap-3 no-print">
+              <button type="submit" id="btnSaveDetail" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-sm py-4 rounded-2xl shadow-lg transition">
+                💾 Simpan Koreksi Data Formulir
+              </button>
+              <button type="button" id="btnCetakBawah" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-6 py-4 rounded-2xl shadow-lg transition shrink-0">
+                🖨️ Cetak Formulir Penuh (2 Lembar A4)
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </main>
+
+    <!-- MODAL CETAK 2 HALAMAN — GAYA FORMULIR DINAS RESMI -->
+    {data && (
+      <div id="modalCetakResi" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 p-2 overflow-y-auto flex items-start sm:items-center justify-center">
+        <div class="print-container max-w-3xl w-full my-auto">
+
+          <!-- ==================== LEMBAR 1: ORANG TUA ==================== -->
+          <div class="page-sheet bg-white rounded-2xl shadow-2xl p-6 sm:p-10 text-[11px] text-slate-900">
+
+            <!-- KOP SURAT -->
+            <div class="kop-surat flex items-center justify-between border-b-2 border-emerald-900 pb-3">
+              <div class="flex items-center gap-3">
+                <img src="/logo.png" alt="Logo" class="w-12 h-12 object-contain" onerror="this.remove()"/>
+                <div>
+                  <h3 class="font-black text-sm uppercase tracking-wider">{namaSekolah}</h3>
+                  <p class="text-[10px] text-slate-700">{alamatSekolah}</p>
+                  <p class="text-[10px] text-slate-700">Tahun Ajaran {tahunAjaran}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="font-black text-sm">{data.no_pendaftaran}</p>
+                <p class="text-[10px]">Status: {data.status_pendaftaran}</p>
+              </div>
+            </div>
+
+            <!-- JUDUL -->
+            <div class="judul-form text-center my-3">
+              <h2 class="font-black text-sm uppercase tracking-wider underline">Bukti Pendaftaran Peserta Didik Baru</h2>
+              <p class="text-[10px] mt-1">Formulir Pendaftaran Murid Baru (PMBM) — Lembar untuk Orang Tua / Wali</p>
+            </div>
+
+            <!-- A. DATA SISWA -->
+            <div class="section-title font-extrabold bg-slate-200 border border-slate-400 px-2 py-1">A. DATA CALON MURID</div>
+            <table class="form-table w-full text-[11px]">
+              <tr>
+                <td class="label">Nama Lengkap Siswa</td>
+                <td class="sep">:</td>
+                <td><strong>{data.nama_siswa}</strong></td>
+              </tr>
+              <tr>
+                <td class="label">NIK Siswa</td>
+                <td class="sep">:</td>
+                <td>{data.nik_siswa || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">NISN</td>
+                <td class="sep">:</td>
+                <td>{data.nisn || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Tempat, Tanggal Lahir</td>
+                <td class="sep">:</td>
+                <td>{data.tempat_lahir || '-'}, {fmtTanggal(data.tanggal_lahir)}</td>
+              </tr>
+              <tr>
+                <td class="label">Jenis Kelamin</td>
+                <td class="sep">:</td>
+                <td>{data.jenis_kelamin || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Asal TK / RA / PAUD</td>
+                <td class="sep">:</td>
+                <td>{data.asal_sekolah || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Anak Ke- / Jumlah Saudara</td>
+                <td class="sep">:</td>
+                <td>Ke-{data.anak_ke || '-'} dari {data.jumlah_saudara || '-'} bersaudara</td>
+              </tr>
+              <tr>
+                <td class="label">Tinggi / Berat Badan</td>
+                <td class="sep">:</td>
+                <td>{data.tinggi_badan || '-'} cm / {data.berat_badan || '-'} kg</td>
+              </tr>
+              <tr>
+                <td class="label">No. Kartu Keluarga (KK)</td>
+                <td class="sep">:</td>
+                <td>{data.no_kk || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Alamat Tempat Tinggal</td>
+                <td class="sep">:</td>
+                <td>RT {data.alamat_rt || '-'} / RW {data.alamat_rw || '-'}, Desa {data.alamat_desa || '-'}, Kec. {data.alamat_kecamatan || '-'}</td>
+              </tr>
+            </table>
+
+            <!-- B. ORANG TUA -->
+            <div class="section-title font-extrabold bg-slate-200 border border-slate-400 px-2 py-1 mt-3">B. DATA ORANG TUA / WALI</div>
+            <table class="form-table w-full text-[11px]">
+              <tr>
+                <td class="label">Nama Ayah Kandung</td>
+                <td class="sep">:</td>
+                <td><strong>{data.nama_ayah || '-'}</strong></td>
+              </tr>
+              <tr>
+                <td class="label">NIK Ayah</td>
+                <td class="sep">:</td>
+                <td>{data.nik_ayah || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Pekerjaan / Penghasilan Ayah</td>
+                <td class="sep">:</td>
+                <td>{data.pekerjaan_ayah || '-'} / {data.penghasilan_ayah || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">No. HP Ayah (WhatsApp)</td>
+                <td class="sep">:</td>
+                <td>{data.hp_ayah || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Nama Ibu Kandung</td>
+                <td class="sep">:</td>
+                <td><strong>{data.nama_ibu || '-'}</strong></td>
+              </tr>
+              <tr>
+                <td class="label">NIK Ibu</td>
+                <td class="sep">:</td>
+                <td>{data.nik_ibu || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Pekerjaan / Penghasilan Ibu</td>
+                <td class="sep">:</td>
+                <td>{data.pekerjaan_ibu || '-'} / {data.penghasilan_ibu || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">No. HP Ibu</td>
+                <td class="sep">:</td>
+                <td>{data.hp_ibu || '-'}</td>
+              </tr>
+            </table>
+
+            <!-- C. BANTUAN & SERAGAM -->
+            <div class="section-title font-extrabold bg-slate-200 border border-slate-400 px-2 py-1 mt-3">C. PROGRAM BANTUAN SOSIAL & UKURAN SERAGAM</div>
+            <table class="form-table w-full text-[11px]">
+              <tr>
+                <td class="label">Program Bantuan Sosial</td>
+                <td class="sep">:</td>
+                <td>{data.bantuan_sosial || 'Tidak Ada'}</td>
+              </tr>
+              <tr>
+                <td class="label">Ukuran Atasan (Baju)</td>
+                <td class="sep">:</td>
+                <td>{data.ukuran_atasan || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Ukuran Bawahan (Celana / Rok)</td>
+                <td class="sep">:</td>
+                <td>{data.ukuran_bawahan || '-'}</td>
+              </tr>
+            </table>
+
+            <!-- D. KEUANGAN -->
+            <div class="section-title font-extrabold bg-slate-200 border border-slate-400 px-2 py-1 mt-3">D. RINCIAN BIAYA</div>
+            <table class="form-table w-full text-[11px]">
+              <tr>
+                <td class="label">Biaya Pendaftaran</td>
+                <td class="sep">:</td>
+                <td>Rp {(data.biaya_pendaftaran || 0).toLocaleString('id-ID')}</td>
+              </tr>
+              <tr>
+                <td class="label">Titipan Uang Seragam</td>
+                <td class="sep">:</td>
+                <td>Rp {(data.biaya_seragam || 0).toLocaleString('id-ID')}</td>
+              </tr>
+              <tr>
+                <td class="label">Status Pemberkasan</td>
+                <td class="sep">:</td>
+                <td><strong>{data.status_pendaftaran || '-'}</strong></td>
+              </tr>
+            </table>
+
+            <!-- CATATAN -->
+            <div class="catatan-print border border-dashed border-slate-500 p-2 mt-3 text-[10px] leading-relaxed">
+              <strong>Catatan:</strong>
+              <ol class="list-decimal ml-4 mt-1">
+                <li>Lembar ini sebagai bukti pendaftaran yang sah, simpan dengan baik.</li>
+                <li>Bawa lembar ini saat verifikasi berkas di madrasah.</li>
+                <li>Bukti tidak berlaku jika data terbukti tidak valid.</li>
+              </ol>
+            </div>
+
+            <!-- TANDA TANGAN -->
+            <div class="ttd flex justify-between mt-5 px-2 text-center text-[11px]">
+              <div class="w-[45%]">
+                <p>Orang Tua / Wali Murid</p>
+                <div class="ruang-ttd h-14"></div>
+                <p class="font-bold underline uppercase">{data.nama_ayah || 'Wali Murid'}</p>
+              </div>
+              <div class="w-[45%]">
+                <p>Krasak, {tanggalCetak}<br/>Petugas Panitia PMBM</p>
+                <div class="ruang-ttd h-14"></div>
+                <p class="font-bold underline">( ................................ )</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== LEMBAR 2: ARSIP PANITIA ==================== -->
+          <div class="page-sheet bg-white rounded-2xl shadow-2xl p-6 sm:p-10 text-[11px] text-slate-900">
+
+            <!-- KOP SURAT ARSIP -->
+            <div class="kop-surat flex items-center justify-between border-b-2 border-emerald-900 pb-3">
+              <div class="flex items-center gap-3">
+                <img src="/logo.png" alt="Logo" class="w-12 h-12 object-contain" onerror="this.remove()"/>
+                <div>
+                  <h3 class="font-black text-sm uppercase tracking-wider">{namaSekolah}</h3>
+                  <p class="text-[10px] text-slate-700">{alamatSekolah}</p>
+                  <p class="text-[10px] text-slate-700 font-bold">[LEMBAR ARSIP KHUSUS PANITIA PMBM] — TA {tahunAjaran}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="font-black text-sm">{data.no_pendaftaran}</p>
+                <p class="text-[10px]">Status: {data.status_pendaftaran}</p>
+              </div>
+            </div>
+
+            <!-- JUDUL -->
+            <div class="judul-form text-center my-3">
+              <h2 class="font-black text-sm uppercase tracking-wider underline">Formulir Pendaftaran Murid Baru</h2>
+              <p class="text-[10px] mt-1">Lembar Arsip Panitia — Untuk Keperluan Administrasi Madrasah</p>
+            </div>
+
+            <!-- A. DATA SISWA + FOTO -->
+            <div class="section-title font-extrabold bg-slate-200 border border-slate-400 px-2 py-1">A. DATA CALON MURID</div>
+            <div class="flex gap-4">
+              <div class="shrink-0">
+                <div class="foto-box w-[28mm] h-[35mm] border border-slate-400 overflow-hidden flex items-center justify-center">
+                  {data.foto_siswa ? (
+                    <img src={data.foto_siswa} alt="Pasfoto" class="w-full h-full object-cover"/>
+                  ) : (
+                    <span class="text-[9px] text-slate-400 text-center">Belum Ada Foto</span>
+                  )}
+                </div>
+                <p class="text-[9px] text-center mt-1">Pasfoto 3x4</p>
+              </div>
+              <table class="form-table flex-1 text-[11px]">
+                <tr>
+                  <td class="label">Nama Lengkap Siswa</td>
+                  <td class="sep">:</td>
+                  <td><strong>{data.nama_siswa}</strong></td>
+                </tr>
+                <tr>
+                  <td class="label">NIK Siswa</td>
+                  <td class="sep">:</td>
+                  <td>{data.nik_siswa || '-'}</td>
+                </tr>
+                <tr>
+                  <td class="label">NISN</td>
+                  <td class="sep">:</td>
+                  <td>{data.nisn || '-'}</td>
+                </tr>
+                <tr>
+                  <td class="label">Tempat, Tanggal Lahir</td>
+                  <td class="sep">:</td>
+                  <td>{data.tempat_lahir || '-'}, {fmtTanggal(data.tanggal_lahir)}</td>
+                </tr>
+                <tr>
+                  <td class="label">Jenis Kelamin</td>
+                  <td class="sep">:</td>
+                  <td>{data.jenis_kelamin || '-'}</td>
+                </tr>
+                <tr>
+                  <td class="label">Asal Sekolah</td>
+                  <td class="sep">:</td>
+                  <td>{data.asal_sekolah || '-'}</td>
+                </tr>
+                <tr>
+                  <td class="label">Anak Ke- / Saudara</td>
+                  <td class="sep">:</td>
+                  <td>Ke-{data.anak_ke || '-'} dari {data.jumlah_saudara || '-'}</td>
+                </tr>
+                <tr>
+                  <td class="label">Tinggi / Berat Badan</td>
+                  <td class="sep">:</td>
+                  <td>{data.tinggi_badan || '-'} cm / {data.berat_badan || '-'} kg</td>
+                </tr>
+                <tr>
+                  <td class="label">No. KK</td>
+                  <td class="sep">:</td>
+                  <td>{data.no_kk || '-'}</td>
+                </tr>
+                <tr>
+                  <td class="label">Alamat</td>
+                  <td class="sep">:</td>
+                  <td>RT {data.alamat_rt || '-'} / RW {data.alamat_rw || '-'}, Desa {data.alamat_desa || '-'}, Kec. {data.alamat_kecamatan || '-'}</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- B. ORANG TUA -->
+            <div class="section-title font-extrabold bg-slate-200 border border-slate-400 px-2 py-1 mt-3">B. DATA ORANG TUA / WALI</div>
+            <table class="form-table w-full text-[11px]">
+              <tr>
+                <td class="label">Nama Ayah Kandung</td>
+                <td class="sep">:</td>
+                <td><strong>{data.nama_ayah || '-'}</strong></td>
+              </tr>
+              <tr>
+                <td class="label">NIK Ayah / No. HP</td>
+                <td class="sep">:</td>
+                <td>{data.nik_ayah || '-'} / {data.hp_ayah || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Pekerjaan / Penghasilan Ayah</td>
+                <td class="sep">:</td>
+                <td>{data.pekerjaan_ayah || '-'} / {data.penghasilan_ayah || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Nama Ibu Kandung</td>
+                <td class="sep">:</td>
+                <td><strong>{data.nama_ibu || '-'}</strong></td>
+              </tr>
+              <tr>
+                <td class="label">NIK Ibu / No. HP</td>
+                <td class="sep">:</td>
+                <td>{data.nik_ibu || '-'} / {data.hp_ibu || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Pekerjaan / Penghasilan Ibu</td>
+                <td class="sep">:</td>
+                <td>{data.pekerjaan_ibu || '-'} / {data.penghasilan_ibu || '-'}</td>
+              </tr>
+            </table>
+
+            <!-- C. BANTUAN & SERAGAM & KEUANGAN -->
+            <div class="section-title font-extrabold bg-slate-200 border border-slate-400 px-2 py-1 mt-3">C. BANTUAN SOSIAL, SERAGAM & KEUANGAN</div>
+            <table class="form-table w-full text-[11px]">
+              <tr>
+                <td class="label">Program Bantuan Sosial</td>
+                <td class="sep">:</td>
+                <td>{data.bantuan_sosial || 'Tidak Ada'}</td>
+              </tr>
+              <tr>
+                <td class="label">Ukuran Seragam</td>
+                <td class="sep">:</td>
+                <td>Atasan: {data.ukuran_atasan || '-'}, Bawahan: {data.ukuran_bawahan || '-'}</td>
+              </tr>
+              <tr>
+                <td class="label">Biaya Pendaftaran</td>
+                <td class="sep">:</td>
+                <td>Rp {(data.biaya_pendaftaran || 0).toLocaleString('id-ID')}</td>
+              </tr>
+              <tr>
+                <td class="label">Titipan Uang Seragam</td>
+                <td class="sep">:</td>
+                <td>Rp {(data.biaya_seragam || 0).toLocaleString('id-ID')}</td>
+              </tr>
+            </table>
+
+            <!-- D. STATUS BERKAS -->
+            <div class="section-title font-extrabold bg-slate-200 border border-slate-400 px-2 py-1 mt-3">D. STATUS KELENGKAPAN BERKAS</div>
+            <div class="status-berkas-print border border-slate-400 p-2">
+              <table class="w-full text-center text-[10px]">
+                <tr>
+                  <td class="border border-slate-400 p-1">
+                    <div class="font-bold">Pasfoto</div>
+                    <div class={data.foto_siswa ? 'text-emerald-700 font-black' : 'text-rose-600 font-black'}>
+                      {data.foto_siswa ? 'SUDAH' : 'BELUM'}
+                    </div>
+                  </td>
+                  <td class="border border-slate-400 p-1">
+                    <div class="font-bold">Akta Kelahiran</div>
+                    <div class={data.foto_akta ? 'text-emerald-700 font-black' : 'text-rose-600 font-black'}>
+                      {data.foto_akta ? 'SUDAH' : 'BELUM'}
+                    </div>
+                  </td>
+                  <td class="border border-slate-400 p-1">
+                    <div class="font-bold">Kartu Keluarga</div>
+                    <div class={data.foto_kk ? 'text-emerald-700 font-black' : 'text-rose-600 font-black'}>
+                      {data.foto_kk ? 'SUDAH' : 'BELUM'}
+                    </div>
+                  </td>
+                  <td class="border border-slate-400 p-1">
+                    <div class="font-bold">Foto Rumah</div>
+                    <div class={data.foto_rumah ? 'text-emerald-700 font-black' : 'text-rose-600 font-black'}>
+                      {data.foto_rumah ? 'SUDAH' : 'BELUM'}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- CATATAN PANITIA -->
+            <div class="catatan-print border border-dashed border-slate-500 p-2 mt-3 text-[10px] leading-relaxed">
+              <strong>Catatan Panitia:</strong>
+              <ol class="list-decimal ml-4 mt-1">
+                <li>Lembar ini diarsipkan oleh panitia PMBM.</li>
+                <li>Verifikasi berkas fisik dilakukan sesuai jadwal yang ditentukan.</li>
+                <li>Data dapat diperbarui apabila terdapat kekeliruan.</li>
+              </ol>
+            </div>
+
+            <!-- TANDA TANGAN PANITIA -->
+            <div class="ttd flex justify-between mt-5 px-2 text-center text-[11px]">
+              <div class="w-[45%]">
+                <p>Mengetahui,<br/>Kepala Madrasah</p>
+                <div class="ruang-ttd h-14"></div>
+                <p class="font-bold underline">( ................................ )</p>
+              </div>
+              <div class="w-[45%]">
+                <p>Krasak, {tanggalCetak}<br/>Petugas Panitia PMBM</p>
+                <div class="ruang-ttd h-14"></div>
+                <p class="font-bold underline">( ................................ )</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- TOMBOL AKSI MODAL (TIDAK IKUT CETAK) -->
+          <div class="flex items-center justify-center gap-3 pt-4 pb-6 no-print">
+            <button onclick="window.print()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs px-6 py-3 rounded-xl shadow-md transition">
+              🖨️ Cetak Dokumen 2 Halaman (A4 Full)
+            </button>
+            <button id="btnCloseResi" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs px-6 py-3 rounded-xl transition">
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <!-- SCRIPT -->
+    <script>
+      // ===== Auth Guard =====
+      if (!sessionStorage.getItem('isAdminLoggedIn')) {
+        window.location.href = '/admin/login';
+      }
+
+      // ===== File Upload Base64 Helper =====
+      function setupFileUpload(fileInputId: string, hiddenInputId: string, previewImgId: string, placeholderId: string) {
+        const fileInput = document.getElementById(fileInputId) as HTMLInputElement | null;
+        const hiddenInput = document.getElementById(hiddenInputId) as HTMLInputElement | null;
+        const previewImg = document.getElementById(previewImgId) as HTMLImageElement | null;
+        const placeholder = document.getElementById(placeholderId);
+
+        if (!fileInput) return;
+
+        fileInput.addEventListener('change', (e: Event) => {
+          const target = e.target as HTMLInputElement;
+          const file = target.files?.[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (uploadEvent) => {
+            const base64String = uploadEvent.target?.result as string;
+            if (hiddenInput) hiddenInput.value = base64String;
+            if (previewImg) {
+              previewImg.src = base64String;
+              previewImg.classList.remove('hidden');
+            }
+            if (placeholder) placeholder.classList.add('hidden');
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      setupFileUpload('file_pasfoto', 'hidden_pasfoto', 'img_preview_pasfoto', 'text_placeholder_pasfoto');
+      setupFileUpload('file_akta', 'hidden_akta', 'img_preview_akta', 'text_placeholder_akta');
+      setupFileUpload('file_kk', 'hidden_kk', 'img_preview_kk', 'text_placeholder_kk');
+      setupFileUpload('file_rumah', 'hidden_rumah', 'img_preview_rumah', 'text_placeholder_rumah');
+      setupFileUpload('file_pkh', 'hidden_pkh', 'img_preview_pkh', 'text_placeholder_pkh');
+      setupFileUpload('file_pip', 'hidden_pip', 'img_preview_pip', 'text_placeholder_pip');
+      setupFileUpload('file_kip', 'hidden_kip', 'img_preview_kip', 'text_placeholder_kip');
+      setupFileUpload('file_bpnt', 'hidden_bpnt', 'img_preview_bpnt', 'text_placeholder_bpnt');
+
+      // ===== Dropdown Bantuan Sosial Dinamis =====
+      const selectBantuan = document.getElementById('selectBantuanSosial') as HTMLSelectElement | null;
+
+      function updateBantuanCardVisibility() {
+        if (!selectBantuan) return;
+        const val = selectBantuan.value;
+        document.querySelectorAll('.bantuan-card').forEach((card) => {
+          (card as HTMLElement).style.display = 'none';
+        });
+
+        if (val.includes('PKH')) {
+          const el = document.getElementById('card_pkh');
+          if (el) el.style.display = 'block';
+        } else if (val.includes('PIP')) {
+          const el = document.getElementById('card_pip');
+          if (el) el.style.display = 'block';
+        } else if (val.includes('KIP')) {
+          const el = document.getElementById('card_kip');
+          if (el) el.style.display = 'block';
+        } else if (val.includes('BPNT')) {
+          const el = document.getElementById('card_bpnt');
+          if (el) el.style.display = 'block';
+        }
+      }
+
+      selectBantuan?.addEventListener('change', updateBantuanCardVisibility);
+      updateBantuanCardVisibility();
+
+      // ===== Submit Form =====
+      const formAdminDetail = document.getElementById('formAdminDetail') as HTMLFormElement | null;
+      if (formAdminDetail) {
+        formAdminDetail.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById('btnSaveDetail') as HTMLButtonElement;
+          btn.disabled = true;
+          btn.innerText = 'Menyimpan Koreksi Data & Berkas...';
+
+          const formData = new FormData(formAdminDetail);
+          const dataObj: Record<string, unknown> = Object.fromEntries(formData.entries());
+
+          const getVal = (id: string) =>
+            (document.getElementById(id) as HTMLInputElement | null)?.value || '';
+
+          dataObj.foto_siswa = getVal('hidden_pasfoto');
+          dataObj.foto_akta = getVal('hidden_akta');
+          dataObj.foto_kk = getVal('hidden_kk');
+          dataObj.foto_rumah = getVal('hidden_rumah');
+          dataObj.foto_pkh = getVal('hidden_pkh');
+          dataObj.foto_pip = getVal('hidden_pip');
+          dataObj.foto_kip = getVal('hidden_kip');
+          dataObj.foto_bpnt = getVal('hidden_bpnt');
+
+          dataObj.action = 'update_full_pendaftar';
+
+          try {
+            const res = await fetch('/api/admin-action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(dataObj),
+            });
+            const result = await res.json();
+            if (result.success) {
+              alert('✅ Koreksi data formulir & berkas berhasil disimpan!');
+              location.reload();
+            } else {
+              alert('❌ Gagal Menyimpan: ' + (result.message || 'Kesalahan server'));
+            }
+          } catch (err) {
+            alert('❌ Terjadi kesalahan koneksi server.');
+          } finally {
+            btn.disabled = false;
+            btn.innerText = '💾 Simpan Koreksi Data Formulir';
+          }
+        });
+      }
+
+      // ===== Modal Cetak =====
+      const modalCetakResi = document.getElementById('modalCetakResi');
+      const btnOpenCetak = document.getElementById('btnOpenCetak');
+      const btnCetakBawah = document.getElementById('btnCetakBawah');
+      const btnCloseResi = document.getElementById('btnCloseResi');
+
+      btnOpenCetak?.addEventListener('click', () => modalCetakResi?.classList.remove('hidden'));
+      btnCetakBawah?.addEventListener('click', () => modalCetakResi?.classList.remove('hidden'));
+      btnCloseResi?.addEventListener('click', () => modalCetakResi?.classList.add('hidden'));
+    </script>
+  </body>
+</html>
